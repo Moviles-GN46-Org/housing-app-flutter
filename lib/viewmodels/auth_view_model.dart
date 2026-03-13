@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_analytics/firebase_analytics.dart'; // Importa esto
 
 class AuthViewModel extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Instancia de Analytics para el Pipeline de la Wiki
+  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -23,7 +26,17 @@ class AuthViewModel extends ChangeNotifier {
     }
     _setLoading(true);
     try {
-      await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+      await _auth.createUserWithEmailAndPassword(
+        email: email.trim(), 
+        password: password
+      );
+
+      await _analytics.logSignUp(signUpMethod: 'email');
+      await _analytics.logEvent(
+        name: 'registration_complete',
+        parameters: {'domain': 'uniandes.edu.co'},
+      );
+      
       _errorMessage = null; 
       _setLoading(false);
       return true;
@@ -42,11 +55,15 @@ class AuthViewModel extends ChangeNotifier {
         email: email.trim(), 
         password: password
       );
-      _errorMessage = null; // Limpiar errores si tuvo éxito
+
+      // --- EVENTO DE ANALYTICS ---
+      // Registramos el login para medir retención de usuarios
+      await _analytics.logLogin(loginMethod: 'email');
+
+      _errorMessage = null; 
       _setLoading(false);
       return true;
     } on FirebaseAuthException catch (e) {
-      // Manejar error de Firebase (ej. usuario no existe o mala contraseña)
       _errorMessage = "Credenciales incorrectas. Intenta de nuevo.";
       _setLoading(false);
       return false;

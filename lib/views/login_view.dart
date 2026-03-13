@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-// Importamos tus herramientas
 import '../utils/app_theme.dart';
 import '../viewmodels/auth_view_model.dart';
-import 'sign_up_view.dart'; // Para poder navegar al registro
+import 'sign_up_view.dart'; 
+import 'insights_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -26,7 +25,7 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchamos el ViewModel para saber si está cargando o hay errores
+
     final authViewModel = context.watch<AuthViewModel>();
 
     return Scaffold(
@@ -39,7 +38,7 @@ class _LoginViewState extends State<LoginView> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo o Título principal
+
                 const Text(
                   'Welcome to CasAndes',
                   textAlign: TextAlign.center,
@@ -53,8 +52,8 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 48),
 
-                // Campo de Correo
-                const Text('University email', style: TextStyle(fontWeight: FontWeight.bold)),
+
+                const Text('University email', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _emailController,
@@ -72,8 +71,8 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 24),
 
-                // Campo de Contraseña
-                const Text('Password', style: TextStyle(fontWeight: FontWeight.bold)),
+
+                const Text('Password', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _passwordController,
@@ -91,7 +90,7 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 32),
 
-                // Mostrar error de Firebase (ej. contraseña incorrecta)
+  
                 if (authViewModel.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
@@ -102,7 +101,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ),
 
-                // Botón de Login
+
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -119,11 +118,16 @@ class _LoginViewState extends State<LoginView> {
                                 _passwordController.text,
                               );
                           
-                          if (success) {
+                          if (success && mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("¡Bienvenido a CasAndes!")),
                             );
-                            // Aquí en el futuro navegaremos a la pantalla del Mapa de Juan David
+                            
+                            // NAVEGACIÓN A INSIGHTS: Aquí respondemos la Type 2 Question
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const InsightsView()),
+                            );
                           }
                         },
                   child: authViewModel.isLoading
@@ -134,11 +138,8 @@ class _LoginViewState extends State<LoginView> {
                         ),
                 ),
                 const SizedBox(height: 24),
-
-                // Botón para ir a registrarse
                 TextButton(
                   onPressed: () {
-                    // Navegación simple hacia tu pantalla de Sign Up
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const SignUpView()),
