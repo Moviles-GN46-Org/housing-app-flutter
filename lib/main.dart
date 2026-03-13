@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-
-// Estos son los archivos que tú creaste
+import 'package:housing_app_flutter/views/login_view.dart';
 import 'firebase_options.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_view_model.dart';
@@ -41,7 +40,7 @@ class CasAndesApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         fontFamily: AppTextStyles.fontFamily,
       ),
-      home: const SignUpView(),
+      home: const LoginView(),
     );
   }
 }

@@ -34,6 +34,25 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  // --- FUNCIÓN DE LOGIN ---
+  Future<bool> login(String email, String password) async {
+    _setLoading(true);
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(), 
+        password: password
+      );
+      _errorMessage = null; // Limpiar errores si tuvo éxito
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      // Manejar error de Firebase (ej. usuario no existe o mala contraseña)
+      _errorMessage = "Credenciales incorrectas. Intenta de nuevo.";
+      _setLoading(false);
+      return false;
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
