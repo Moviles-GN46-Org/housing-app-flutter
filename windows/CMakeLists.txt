@@ -1,5 +1,9 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Allow older CMake policy versions in dependencies (e.g. Firebase C++ SDK).
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 project(housing_app_flutter LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
