@@ -8,6 +8,7 @@ class Property {
   final double longitude;
   final int bedrooms;
   final int bathrooms;
+  final String imageUrl; // Nueva propiedad para la imagen
 
   Property({
     required this.id,
@@ -19,20 +20,27 @@ class Property {
     required this.longitude,
     required this.bedrooms,
     required this.bathrooms,
+    required this.imageUrl,
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
+    // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
+    String firstImage = 'https://via.placeholder.com/400x300.png?text=No+Image';
+    if (json['imageUrls'] != null && (json['imageUrls'] as List).isNotEmpty) {
+      firstImage = json['imageUrls'][0];
+    }
+
     return Property(
       id: json['id']?.toString() ?? '',
-      title: json['title'] ?? 'Sin título',
+      title: json['title'] ?? 'No Title',
       address: json['address'] ?? '',
       neighborhood: json['neighborhood'] ?? '',
-      // Forzamos la conversión a double de forma segura
       monthlyRent: double.tryParse(json['monthlyRent']?.toString() ?? '0') ?? 0.0,
       latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
       bedrooms: json['bedrooms'] ?? 0,
       bathrooms: json['bathrooms'] ?? 0,
+      imageUrl: firstImage,
     );
   }
 }

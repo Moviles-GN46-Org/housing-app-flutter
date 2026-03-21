@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../models/property_model.dart';
+import '../services/api_client.dart'; 
 
 class MapViewModel extends ChangeNotifier {
-  final String _baseUrl = "http://localhost:3000/api/properties";
+  final ApiClient _apiClient = ApiClient();
   
   List<Property> _properties = [];
   List<Property> get properties => _properties;
@@ -23,25 +22,20 @@ class MapViewModel extends ChangeNotifier {
     return "\$${(averageRent / 1000000).toStringAsFixed(2)}M COP";
   }
 
-  Future<void> fetchProperties(String token) async {
-    debugPrint("MapViewModel: Initializing fetchProperties...");
+  Future<void> fetchProperties() async {
+    debugPrint("MapViewModel: Fetching properties using ApiClient...");
     
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response = await http.get(
-        Uri.parse(_baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      // Usamos el cliente de David que ya tiene el /api y el Token incluido
+      final response = await _apiClient.get('/properties');
 
-      debugPrint("MapViewModel: Response status code ${response.statusCode}");
+      debugPrint("MapViewModel: Response received with status ${response.statusCode}");
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final responseData = response.data; // En Dio ya es un Map
         
         if (responseData['success'] == true) {
           var rawData = responseData['data'];
@@ -58,11 +52,9 @@ class MapViewModel extends ChangeNotifier {
           _properties = propertiesList.map((item) => Property.fromJson(item)).toList();
           debugPrint("MapViewModel: Successfully loaded ${_properties.length} properties.");
         }
-      } else {
-        debugPrint("MapViewModel: Server error: ${response.body}");
       }
     } catch (e) {
-      debugPrint("MapViewModel: Connection error: $e");
+      debugPrint("MapViewModel: Error fetching properties: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
