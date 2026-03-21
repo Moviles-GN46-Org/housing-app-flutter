@@ -89,6 +89,39 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> verifyEmail({required String code}) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final response = await _repository.verifyEmail(code: code);
+
+      await StorageService.saveTokens(
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      );
+
+      _currentUser = response.user;
+    } on Exception catch (e) {
+      _error = _parseError(e);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> resendCode() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await _repository.resendCode();
+    } on Exception catch (e) {
+      _error = _parseError(e);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> logout() async {
     await StorageService.clearTokens();
     _currentUser = null;

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import 'register_screen.dart';
+import '../../widgets/casandes_logo.dart';
+import 'role_selection_screen.dart';
+import 'verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,17 +30,22 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     await context.read<AuthViewModel>().login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
 
     if (mounted) {
-      final error = context.read<AuthViewModel>().error;
-      if (error != null) {
+      final authVM = context.read<AuthViewModel>();
+      if (authVM.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red.shade700,
+          SnackBar(content: Text(authVM.error!), backgroundColor: Colors.red.shade700),
+        );
+      } else if (authVM.isAuthenticated && !authVM.currentUser!.isVerified) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerifyEmailScreen(
+              email: authVM.currentUser!.email,
+            ),
           ),
         );
       }
@@ -72,30 +79,43 @@ class _LoginScreenState extends State<LoginScreen> {
                     bottomRight: Radius.circular(32),
                   ),
                   child: Image.asset(
-                    'assets/images/login_illustration.png',
+                    'assets/images/login_illustration.jpg',
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(Icons.home_rounded,
-                          size: 64, color: AppColors.primary),
+                      child: Icon(
+                        Icons.home_rounded,
+                        size: 64,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
               ),
 
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Title
-                      Text(
-                        'Welcome back to UniHousing',
-                        style: AppTextStyles.heading,
-                        textAlign: TextAlign.center,
+                      // Title with logo
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            'Welcome back to ',
+                            style: AppTextStyles.heading,
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 4),
+                      const CasandesLogo(width: 180),
                       const SizedBox(height: 8),
                       Text(
                         'Sign in to connect with your campus\nhousing community',
@@ -179,8 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor:
-                                AppColors.primary.withAlpha(150),
+                            disabledBackgroundColor: AppColors.primary
+                                .withAlpha(150),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -223,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const RegisterScreen(),
+                                  builder: (_) => const RoleSelectionScreen(),
                                 ),
                               );
                             },

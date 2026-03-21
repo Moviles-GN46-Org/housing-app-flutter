@@ -5,6 +5,8 @@ import 'repositories/auth_repository.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'views/auth/login_screen.dart';
+import 'views/auth/success_screen.dart';
+import 'views/auth/verify_email_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,7 +75,10 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (authVM.isAuthenticated) {
-      return const Scaffold(body: Center(child: Text('Home — coming soon')));
+      if (!authVM.currentUser!.isVerified) {
+        return VerifyEmailScreen(email: authVM.currentUser!.email);
+      }
+      return const SuccessScreen();
     }
 
     return const LoginScreen();

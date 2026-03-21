@@ -40,6 +40,18 @@ class AuthRepository {
     return AuthResponse.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
+  Future<AuthResponse> verifyEmail({required String code}) async {
+    final response = await _api.post(
+      '/auth/verify-email',
+      data: {'code': code},
+    );
+    return AuthResponse.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> resendCode() async {
+    await _api.post('/auth/resend-code');
+  }
+
   Future<User> getMe() async {
     final response = await _api.get('/auth/me');
     return User.fromJson(response.data['data'] as Map<String, dynamic>);

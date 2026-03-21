@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -30,7 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool _isEduEmail(String email) {
-    final eduPattern = RegExp(r'^[^\s@]+@[^\s@]+\.edu(\.[a-zA-Z]{2,})?$', caseSensitive: false);
+    final eduPattern = RegExp(
+      r'^[^\s@]+@[^\s@]+\.edu(\.[a-zA-Z]{2,})?$',
+      caseSensitive: false,
+    );
     return eduPattern.hasMatch(email);
   }
 
@@ -38,23 +42,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     await context.read<AuthViewModel>().register(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          role: 'STUDENT',
-          phone: _phoneController.text.trim().isEmpty
-              ? null
-              : _phoneController.text.trim(),
-        );
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
+      role: 'STUDENT',
+      phone: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
+    );
 
     if (mounted) {
-      final error = context.read<AuthViewModel>().error;
-      if (error != null) {
+      final authVM = context.read<AuthViewModel>();
+      if (authVM.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red.shade700,
+          SnackBar(content: Text(authVM.error!), backgroundColor: Colors.red.shade700),
+        );
+      } else if (authVM.isAuthenticated) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerifyEmailScreen(
+              email: authVM.currentUser!.email,
+            ),
           ),
         );
       }
@@ -88,19 +97,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     bottomRight: Radius.circular(32),
                   ),
                   child: Image.asset(
-                    'assets/images/register_illustration.png',
+                    'assets/images/register_illustration.jpg',
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(Icons.school_rounded,
-                          size: 64, color: AppColors.primary),
+                      child: Icon(
+                        Icons.school_rounded,
+                        size: 64,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
               ),
 
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -131,15 +145,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _firstNameController,
-                                  textCapitalization:
-                                      TextCapitalization.words,
+                                  textCapitalization: TextCapitalization.words,
                                   decoration: _inputDecoration(
                                     hintText: 'Jane',
                                     prefixIcon: Icons.person_outline,
                                   ),
                                   validator: (value) {
-                                    if (value == null ||
-                                        value.trim().isEmpty) {
+                                    if (value == null || value.trim().isEmpty) {
                                       return 'Required';
                                     }
                                     return null;
@@ -157,15 +169,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _lastNameController,
-                                  textCapitalization:
-                                      TextCapitalization.words,
+                                  textCapitalization: TextCapitalization.words,
                                   decoration: _inputDecoration(
                                     hintText: 'Doe',
                                     prefixIcon: Icons.person_outline,
                                   ),
                                   validator: (value) {
-                                    if (value == null ||
-                                        value.trim().isEmpty) {
+                                    if (value == null || value.trim().isEmpty) {
                                       return 'Required';
                                     }
                                     return null;
@@ -284,7 +294,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.primary,
                                   side: const BorderSide(
-                                      color: AppColors.primary, width: 1.5),
+                                    color: AppColors.primary,
+                                    width: 1.5,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -298,12 +310,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton.icon(
-                                onPressed:
-                                    authVM.isLoading ? null : _handleRegister,
+                                onPressed: authVM.isLoading
+                                    ? null
+                                    : _handleRegister,
                                 icon: authVM.isLoading
                                     ? const SizedBox.shrink()
-                                    : const Icon(Icons.arrow_forward,
-                                        size: 18),
+                                    : const Icon(Icons.arrow_forward, size: 18),
                                 label: authVM.isLoading
                                     ? const SizedBox(
                                         height: 22,
@@ -316,8 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     : const Text(
                                         'Sign up',
                                         style: TextStyle(
-                                          fontFamily:
-                                              AppTextStyles.fontFamily,
+                                          fontFamily: AppTextStyles.fontFamily,
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -325,8 +336,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor:
-                                      AppColors.primary.withAlpha(150),
+                                  disabledBackgroundColor: AppColors.primary
+                                      .withAlpha(150),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
