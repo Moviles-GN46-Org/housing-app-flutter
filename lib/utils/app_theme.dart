@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color background = Color(0xFFFBF3EB); 
-  static const Color cardBackground = Color(0xFFF6E5D4); 
-  static const Color primary = Color(0xFFDA9958); 
-  static const Color textDark = Color(0xFF3C2E26); 
-  static const Color textMuted = Color(0xFF8B7264); 
-  static const Color inputBackground = Color(0xFFFEFBF9); 
+  static const Color background = Color(0xFFFBF3EB);
+  static const Color cardBackground = Color(0xFFF6E5D4);
+  static const Color primary = Color(0xFFDA9958);
+  static const Color textDark = Color(0xFF3C2E26);
+  static const Color textMuted = Color(0xFF8B7264);
+  static const Color inputBackground = Color(0xFFFEFBF9);
+  static const Color dustyTaupe = Color(0xFF8B7364); // Secondary labels
+  static const Color ashBrown = Color(0xFF58463A); // Body text
+  static const Color deepMocha = Color(0xFF3C2E26); // Titles
+  static const Color lightBronze = Color(0xFFDA9958); // Key elements
+  static const Color linen = Color(0xFFFBF3EB); // Backgrounds
+  static const Color white = Color(0xFFFEFBF9); // Cards, accent components
 }
 
 class AppTextStyles {
-  // Asegúrate de descargar 'Instrument Sans' de Google Fonts después
   static const String fontFamily = 'Instrument Sans';
 
   static const TextStyle heading = TextStyle(

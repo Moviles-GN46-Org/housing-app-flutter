@@ -3,9 +3,10 @@ import 'storage_service.dart';
 
 class ApiClient {
   // TODO: CHANGE BASED ON WHAT YOU'RE USING (EMULATOR, SIMULATOR, OR WEB)
-  // static const String _baseUrl = 'http://10.0.2:3000/api'; // Use the IP address for Android emulator
   static const String _baseUrl =
-      'http://localhost:3000/api'; // Use localhost for iOS simulator and web
+      'http://10.0.2.2:3000/api'; // Use the IP address for Android emulator
+  // static const String _baseUrl =
+  //     'http://localhost:3000/api'; // Use localhost for iOS simulator and web
   final Dio _dio;
 
   ApiClient()

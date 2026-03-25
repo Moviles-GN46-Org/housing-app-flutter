@@ -2,7 +2,7 @@ name: housing_app_flutter
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -36,15 +36,13 @@ dependencies:
   geolocator: ^14.0.2
   url_launcher: ^6.3.2
   image_picker: ^1.2.1
-  
-  # Tu parte (Mapas)
-  flutter_map: ^7.0.2 
+  flutter_map: ^7.0.2
   latlong2: ^0.9.1
-
-  # La parte de David (Auth y API)
   dio: ^5.9.2
   flutter_secure_storage: ^10.0.0
   flutter_svg: ^2.0.17
+  flutter_lucide: ^1.8.2
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +60,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -71,28 +68,15 @@ flutter:
   assets:
     - assets/images/
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
+  fonts:
+    - family: Instrument Sans
+      fonts:
+        - asset: fonts/InstrumentSans-Regular.ttf
+        - asset: fonts/InstrumentSans-Medium.ttf
+          weight: 500
+        - asset: fonts/InstrumentSans-Bold.ttf
+          weight: 700
 
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+flutter_native_splash:
+  color: "#DA9958"
+  image: assets/images/casandes-white.png
