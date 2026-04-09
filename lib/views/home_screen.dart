@@ -120,20 +120,37 @@ class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: hasSelection ? AppColors.lightBronze : AppColors.white,
         borderRadius: BorderRadius.circular(25.0),
       ),
       child: DropdownButton<String>(
         value: dropdownValue,
-        hint: const Text('Budget'),
-        icon: const Icon(LucideIcons.chevron_down),
+        hint: const Text(
+          'Budget',
+          style: TextStyle(
+            color: AppColors.dustyTaupe,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            fontFamily: AppTextStyles.fontFamily,
+          ),
+        ),
+        icon: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Icon(
+            LucideIcons.chevron_down,
+            color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+          ),
+        ),
         elevation: 1,
-        style: const TextStyle(
-          color: AppColors.dustyTaupe,
-          fontWeight: FontWeight.w500,
+        isDense: true,
+        style: TextStyle(
+          color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+          fontWeight: FontWeight.w600,
           fontSize: 16,
           fontFamily: AppTextStyles.fontFamily,
         ),
@@ -141,7 +158,7 @@ class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
         borderRadius: BorderRadius.circular(10.0),
         enableFeedback: true,
         focusColor: AppColors.linen,
-        iconEnabledColor: AppColors.dustyTaupe,
+        iconEnabledColor: hasSelection ? AppColors.white : AppColors.dustyTaupe,
         iconSize: 20.0,
         underline: const SizedBox(),
         onChanged: (String? value) {
@@ -154,7 +171,15 @@ class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
             if (value == '') {
               return const Text('Budget');
             }
-            return Text(value);
+            return Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontFamily: AppTextStyles.fontFamily,
+              ),
+            );
           }).toList();
         },
         items: <DropdownMenuItem<String>>[
