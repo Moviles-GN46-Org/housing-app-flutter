@@ -21,12 +21,15 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
-        ChangeNotifierProvider(
-          create: (_) => HomeViewModel(propertyRepository),
-        ),
-        ChangeNotifierProvider(create: (_) => MapViewModel()),
-      ],
+    ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
+    ChangeNotifierProvider(
+      create: (_) => HomeViewModel(propertyRepository),
+    ),
+    // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
+    ChangeNotifierProvider(
+      create: (_) => MapViewModel(propertyRepository), 
+    ),
+  ],
       child: const UniHousingApp(),
     ),
   );

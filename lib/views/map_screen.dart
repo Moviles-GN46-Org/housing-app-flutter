@@ -3,8 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import '../viewmodels/map_view_model.dart';
 import '../models/property_model.dart';
+import '../utils/app_theme.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -14,11 +16,15 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+
+  final MapController _mapController = MapController();
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MapViewModel>().fetchProperties();
+      context.read<MapViewModel>().initializeMap();
     });
   }
 
@@ -26,19 +32,26 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final mapViewModel = context.watch<MapViewModel>();
     
-    const Color brandOrange = Color(0xFFDA9958);
-    const Color brandDark = Color(0xFF3C2E26);
-    const Color brandGrey = Color(0xFF8B7264);
-    const Color brandBackground = Color(0xFFFBF3EB);
+    final Color primaryColor = AppColors.lightBronze;
+    final Color darkColor = AppColors.dustyTaupe;
+    final Color backgroundColor = AppColors.background;
 
     return Scaffold(
-      backgroundColor: brandBackground,
+      backgroundColor: backgroundColor,
       body: Stack(
         children: [
+
           FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(4.6020, -74.0650),
-              initialZoom: 14.0,
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: const LatLng(4.6020, -74.0650),
+              initialZoom: 13.0,
+
+              onMapReady: () {
+                if (mapViewModel.userLocation != null) {
+                  _mapController.move(mapViewModel.userLocation!, 14.0);
+                }
+              },
             ),
             children: [
               TileLayer(
@@ -46,221 +59,199 @@ class _MapScreenState extends State<MapScreen> {
                 userAgentPackageName: 'com.uniandes.housing_app',
               ),
               MarkerLayer(
-                markers: mapViewModel.properties.map((p) => Marker(
-                  point: LatLng(p.latitude, p.longitude),
-                  width: 45,
-                  height: 45,
-                  child: const Icon(
-                    Icons.location_on, 
-                    color: brandOrange, 
-                    size: 40
-                  ),
-                )).toList(),
+                markers: [
+
+                  if (mapViewModel.userLocation != null)
+                    Marker(
+                      point: mapViewModel.userLocation!,
+                      width: 60,
+                      height: 60,
+                      child: _buildUserLocationMarker(),
+                    ),
+                  
+                  ...mapViewModel.properties.map((p) => Marker(
+                    point: LatLng(p.latitude, p.longitude),
+                    width: 45,
+                    height: 45,
+                    child: Icon(
+                      LucideIcons.map_pin,
+                      color: primaryColor, 
+                      size: 35
+                    ),
+                  )),
+                ],
               ),
             ],
           ),
 
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.only(top: 50, bottom: 15, left: 20, right: 20),
-              decoration: const BoxDecoration(
-                color: brandOrange,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  'Map View',
-                  style: TextStyle(
-                    color: Colors.white, 
-                    fontSize: 20, 
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Instrument Sans'
-                  ),
-                ),
-              ),
-            ),
-          ),
+  
+          _buildHeader(primaryColor),
 
-          Positioned(
-            top: 130,
-            left: 20,
-            right: 20,
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              color: Colors.white.withOpacity(0.95),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.analytics_outlined, color: brandOrange, size: 28),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          "Market Average Rent",
-                          style: TextStyle(color: brandGrey, fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          mapViewModel.averageRentFormatted,
-                          style: const TextStyle(
-                            color: brandDark, 
-                            fontSize: 18, 
-                            fontWeight: FontWeight.bold
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+  
+          _buildInsightCard(mapViewModel, primaryColor),
 
-          DraggableScrollableSheet(
-            initialChildSize: 0.3,
-            minChildSize: 0.15,
-            maxChildSize: 0.8,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF6E5D4),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30), 
-                    topRight: Radius.circular(30)
-                  ),
-                ),
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(20),
-                  itemCount: mapViewModel.properties.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: brandGrey.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            const SizedBox(height: 15),
-                            const Text(
-                              'Recommended for you',
-                              style: TextStyle(
-                                color: brandDark, 
-                                fontSize: 22, 
-                                fontWeight: FontWeight.bold
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    final property = mapViewModel.properties[index - 1];
-                    return _buildPropertyCard(property, brandDark, brandGrey);
-                  },
-                ),
-              );
-            },
-          ),
+
+          _buildDraggableSheet(mapViewModel, darkColor),
+
 
           if (mapViewModel.isLoading)
-            Container(
-              color: Colors.black12,
-              child: const Center(
-                child: CircularProgressIndicator(color: brandOrange),
-              ),
-            ),
+            _buildLoadingOverlay(),
         ],
       ),
     );
   }
 
-  Widget _buildPropertyCard(Property p, Color titleColor, Color detailColor) {
-    final bool isSvg = p.imageUrl.toLowerCase().endsWith('.svg');
 
+  Widget _buildUserLocationMarker() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: const Center(
+        child: Icon(LucideIcons.circle_user_round, color: Colors.blue, size: 32),
+      ),
+    );
+  }
+
+  Widget _buildHeader(Color color) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 10, 
+          bottom: 15, 
+          left: 20, 
+          right: 20
+        ),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+        ),
+        child: const Center(
+          child: Text(
+            'Viviendas cerca de ti',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsightCard(MapViewModel vm, Color color) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 70,
+      left: 20,
+      right: 20,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white.withOpacity(0.98),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(LucideIcons.navigation, color: color, size: 24),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("PROMEDIO DE RENTA (5KM)", 
+                    style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                  Text(vm.averageRentFormatted,
+                    style: TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDraggableSheet(MapViewModel vm, Color handleColor) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.28,
+      minChildSize: 0.15,
+      maxChildSize: 0.8,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF6E5D4),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: ListView.builder(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+            itemCount: vm.properties.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) return _buildSheetHandle(handleColor, vm.properties.length);
+              return _buildPropertyCard(vm.properties[index - 1]);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSheetHandle(Color color, int count) {
+    return Column(
+      children: [
+        Container(width: 40, height: 5, 
+          decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(10))),
+        const SizedBox(height: 15),
+        Text('$count viviendas encontradas', 
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 15),
+      ],
+    );
+  }
+
+  Widget _buildPropertyCard(Property p) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white, 
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: SizedBox(
-              width: 90,
-              height: 90,
-              child: isSvg 
-                ? SvgPicture.network(
-                    p.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholderBuilder: (context) => const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : Image.network(
-                    p.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: const Color(0xFFFBF3EB),
-                      child: const Icon(Icons.home_work_outlined, color: Color(0xFFDA9958)),
-                    ),
-                  ),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(width: 80, height: 80, 
+              child: Image.network(p.imageUrl, fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Container(color: AppColors.background, child: const Icon(LucideIcons.house)))),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  p.title,
-                  style: TextStyle(color: titleColor, fontSize: 16, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1),
+                Text(p.neighborhood, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
-                Text(
-                  p.neighborhood,
-                  style: TextStyle(color: detailColor, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '\$${(p.monthlyRent / 1000).toStringAsFixed(0)}k /mo',
-                  style: TextStyle(
-                    color: titleColor, 
-                    fontSize: 16, 
-                    fontWeight: FontWeight.w800
-                  ),
-                ),
+                Text('\$${(p.monthlyRent / 1000).toStringAsFixed(0)}k /mes',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 16)),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black45,
+      child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
   }
 }

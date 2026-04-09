@@ -1,63 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/property_model.dart';
-import '../services/api_client.dart'; 
+import '../repositories/property_repository.dart';
 
 class MapViewModel extends ChangeNotifier {
-  final ApiClient _apiClient = ApiClient();
-  
-  List<Property> _properties = [];
-  List<Property> get properties => _properties;
+  final PropertyRepository _propertyRepository;
+  MapViewModel(this._propertyRepository);
+
+  List<Property> _allProperties = []; 
+  List<Property> _filteredProperties = []; 
+  List<Property> get properties => _filteredProperties;
+
+  LatLng? _userLocation;
+  LatLng? get userLocation => _userLocation;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  double get averageRent {
-    if (_properties.isEmpty) return 0.0;
-    double total = _properties.fold(0, (sum, item) => sum + item.monthlyRent);
-    return total / _properties.length;
-  }
 
   String get averageRentFormatted {
-    if (_properties.isEmpty) return "Calculating...";
-    return "\$${(averageRent / 1000000).toStringAsFixed(2)}M COP";
+    if (_filteredProperties.isEmpty) return "Sin viviendas cerca";
+    double total = _filteredProperties.fold(0.0, (sum, item) => sum + item.monthlyRent);
+    double avg = total / _filteredProperties.length;
+    return "\$${(avg / 1000000).toStringAsFixed(2)}M COP";
   }
 
-  Future<void> fetchProperties() async {
-    debugPrint("MapViewModel: Fetching properties using ApiClient...");
-    
+  Future<void> initializeMap() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Usamos el cliente de David que ya tiene el /api y el Token incluido
-      final response = await _apiClient.get('/properties');
 
-      debugPrint("MapViewModel: Response received with status ${response.statusCode}");
+      Position position = await _determinePosition();
+      _userLocation = LatLng(position.latitude, position.longitude);
 
-      if (response.statusCode == 200) {
-        final responseData = response.data; // En Dio ya es un Map
-        
-        if (responseData['success'] == true) {
-          var rawData = responseData['data'];
-          List<dynamic> propertiesList = [];
 
-          if (rawData is List) {
-            propertiesList = rawData;
-          } else if (rawData is Map && rawData.containsKey('properties')) {
-            propertiesList = rawData['properties'];
-          } else if (rawData is Map && rawData.containsKey('data')) {
-            propertiesList = rawData['data'];
-          }
+      _allProperties = await _propertyRepository.getProperties();
 
-          _properties = propertiesList.map((item) => Property.fromJson(item)).toList();
-          debugPrint("MapViewModel: Successfully loaded ${_properties.length} properties.");
-        }
-      }
+
+      _filterPropertiesByDistance();
     } catch (e) {
-      debugPrint("MapViewModel: Error fetching properties: $e");
+      debugPrint("Error inicializando mapa: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void _filterPropertiesByDistance() {
+    if (_userLocation == null) return;
+
+    final Distance distance = const Distance();
+    _filteredProperties = _allProperties.where((p) {
+      double km = distance.as(
+        LengthUnit.Kilometer,
+        _userLocation!,
+        LatLng(p.latitude, p.longitude),
+      );
+      return km <= 25.0; 
+    }).toList();
+  }
+
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return Future.error('Servicio de ubicación desactivado.');
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return Future.error('Permiso denegado.');
+    }
+    return await Geolocator.getCurrentPosition();
   }
 }
