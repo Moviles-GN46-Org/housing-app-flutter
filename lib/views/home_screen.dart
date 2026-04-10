@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'map_screen.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 // Main (home) screen with a regular feed of housing listings
@@ -85,7 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.dustyTaupe,
                           size: 30.0,
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const MapScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],

@@ -230,7 +230,7 @@ class _MapScreenState extends State<MapScreen> {
         ),
         child: const Center(
           child: Text(
-            'Viviendas cerca de ti',
+            'Listings near you',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -262,7 +262,7 @@ class _MapScreenState extends State<MapScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    "PROMEDIO DE RENTA (25KM)",
+                    "AVERAGE RENT (25KM)",
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 10,
@@ -330,7 +330,7 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 15),
         Text(
-          '$count viviendas encontradas',
+          '$count listings found',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 15),
