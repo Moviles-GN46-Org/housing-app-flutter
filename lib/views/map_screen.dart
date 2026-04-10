@@ -21,7 +21,7 @@ class _MapScreenState extends State<MapScreen> {
   String? _selectedPropertyId;
 
   static const double _kSheetHeaderHeight = 68.0;
-  static const double _kCardHeight = 116.0; 
+  static const double _kCardHeight = 116.0;
   static const double _kSheetTopPadding = 12.0;
 
   @override
@@ -41,11 +41,15 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onPropertyMarkerTapped(Property p, int index) {
     setState(() => _selectedPropertyId = p.id);
-    _mapController.move(LatLng(p.latitude, p.longitude), _mapController.camera.zoom);
+    _mapController.move(
+      LatLng(p.latitude, p.longitude),
+      _mapController.camera.zoom,
+    );
 
     final controller = _sheetScrollController;
     if (controller != null && controller.hasClients) {
-      final targetOffset = _kSheetTopPadding + _kSheetHeaderHeight + (index * _kCardHeight);
+      final targetOffset =
+          _kSheetTopPadding + _kSheetHeaderHeight + (index * _kCardHeight);
       controller.animateTo(
         targetOffset.clamp(0.0, controller.position.maxScrollExtent),
         duration: const Duration(milliseconds: 400),
@@ -77,7 +81,8 @@ class _MapScreenState extends State<MapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.uniandes.housing_app',
               ),
@@ -123,58 +128,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildInsightCard(MapViewModel vm, Color color) {
-    return Positioned(
-      top: MediaQuery.of(context).padding.top + 70,
-      left: 20,
-      right: 20,
-      child: Card(
-        elevation: 8,
-        shadowColor: Colors.black26,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        color: Colors.white.withOpacity(0.95),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.activity, color: color, size: 18),
-                      const SizedBox(width: 8),
-                      const Text(
-                        "ESTADÍSTICAS DE ZONA (5KM)",
-                        style: TextStyle(
-                          color: AppColors.dustyTaupe,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatItem("Renta Promedio", vm.averageRentFormatted, LucideIcons.banknote),
-                      _buildStatItem("Densidad Oferta", vm.supplyDensityFormatted, LucideIcons.layers),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Expanded(
       child: Row(
@@ -184,7 +137,10 @@ class _MapScreenState extends State<MapScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.grey, fontSize: 10),
+              ),
               Text(
                 value,
                 style: const TextStyle(
@@ -239,42 +195,71 @@ class _MapScreenState extends State<MapScreen> {
       left: 20,
       right: 20,
       child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white.withOpacity(0.98),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(LucideIcons.navigation, color: color, size: 24),
-              const SizedBox(width: 12),
-              Column(
+        elevation: 8,
+        shadowColor: Colors.black26,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: Colors.white.withOpacity(0.95),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "AVERAGE RENT (25KM)",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.activity, color: color, size: 18),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "ESTADÍSTICAS DE ZONA (5KM)",
+                        style: TextStyle(
+                          color: AppColors.dustyTaupe,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    vm.averageRentFormatted,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatItem(
+                        "Renta Promedio",
+                        vm.averageRentFormatted,
+                        LucideIcons.banknote,
+                      ),
+                      _buildStatItem(
+                        "Densidad Oferta",
+                        vm.supplyDensityFormatted,
+                        LucideIcons.layers,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-  Widget _buildPriceMarker(Property p, bool isSelected, Color accent, VoidCallback onTap) {
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceMarker(
+    Property p,
+    bool isSelected,
+    Color accent,
+    VoidCallback onTap,
+  ) {
     final Color bg = isSelected ? accent : AppColors.linen;
     final Color fg = isSelected ? AppColors.linen : AppColors.deepMocha;
-    final Color borderColor = isSelected ? accent : Colors.black.withOpacity(0.08);
+    final Color borderColor = isSelected
+        ? accent
+        : Colors.black.withOpacity(0.08);
 
     return GestureDetector(
       onTap: onTap,
@@ -297,7 +282,11 @@ class _MapScreenState extends State<MapScreen> {
             ),
             child: Text(
               _formatPriceMillions(p.monthlyRent),
-              style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: fg,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           CustomPaint(
@@ -338,9 +327,13 @@ class _MapScreenState extends State<MapScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
             itemCount: vm.properties.length + 1,
             itemBuilder: (context, index) {
-              if (index == 0) return _buildSheetHandle(handleColor, vm.properties.length);
+              if (index == 0)
+                return _buildSheetHandle(handleColor, vm.properties.length);
               final property = vm.properties[index - 1];
-              return _buildPropertyCard(property, isSelected: property.id == _selectedPropertyId);
+              return _buildPropertyCard(
+                property,
+                isSelected: property.id == _selectedPropertyId,
+              );
             },
           ),
         );
@@ -377,10 +370,15 @@ class _MapScreenState extends State<MapScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isSelected ? AppColors.lightBronze : Colors.transparent, width: 1.5),
+        border: Border.all(
+          color: isSelected ? AppColors.lightBronze : Colors.transparent,
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: isSelected ? AppColors.lightBronze.withOpacity(0.2) : Colors.black.withOpacity(0.04),
+            color: isSelected
+                ? AppColors.lightBronze.withOpacity(0.2)
+                : Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -396,7 +394,10 @@ class _MapScreenState extends State<MapScreen> {
               child: Image.network(
                 p.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(color: AppColors.background, child: const Icon(LucideIcons.house)),
+                errorBuilder: (c, e, s) => Container(
+                  color: AppColors.background,
+                  child: const Icon(LucideIcons.house),
+                ),
               ),
             ),
           ),
@@ -405,12 +406,26 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1),
-                Text(p.neighborhood, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(
+                  p.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                ),
+                Text(
+                  p.neighborhood,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '\$${(p.monthlyRent / 1000000).toStringAsFixed(1)}M /mes',
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 16),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
@@ -423,7 +438,9 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black45,
-      child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      child: const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
     );
   }
 }
@@ -441,12 +458,30 @@ class _MarkerTailPainter extends CustomPainter {
       ..lineTo(size.width / 2, size.height)
       ..close();
     canvas.drawShadow(path, Colors.black.withOpacity(0.15), 2, false);
-    canvas.drawPath(path, Paint()..color = fill..style = PaintingStyle.fill);
-    final edgePaint = Paint()..color = stroke..strokeWidth = 1..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(0, 0), Offset(size.width / 2, size.height), edgePaint);
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width / 2, size.height), edgePaint);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = fill
+        ..style = PaintingStyle.fill,
+    );
+    final edgePaint = Paint()
+      ..color = stroke
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(0, 0),
+      Offset(size.width / 2, size.height),
+      edgePaint,
+    );
+    canvas.drawLine(
+      Offset(size.width, 0),
+      Offset(size.width / 2, size.height),
+      edgePaint,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _MarkerTailPainter oldDelegate) => oldDelegate.fill != fill || oldDelegate.stroke != stroke;
+  bool shouldRepaint(covariant _MarkerTailPainter oldDelegate) =>
+      oldDelegate.fill != fill || oldDelegate.stroke != stroke;
 }
