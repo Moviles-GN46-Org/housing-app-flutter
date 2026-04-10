@@ -33,6 +33,10 @@ class PropertyRepository {
     return [];
   }
 
+  Future<bool> refreshAccessToken() {
+    return _api.refreshAccessToken();
+  }
+
   Future<Property?> getPropertyById(String id) async {
     try {
       final response = await _api.get('/properties/$id');

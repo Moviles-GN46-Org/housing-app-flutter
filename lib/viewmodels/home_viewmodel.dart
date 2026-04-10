@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import '../models/property_model.dart';
 import '../repositories/property_repository.dart';
 
@@ -22,9 +23,6 @@ class HomeViewModel extends ChangeNotifier {
 
     try {
       _properties = await _repository.getProperties();
-    } catch (e) {
-      _error = 'Failed to load properties: ${e.toString()}';
-      debugPrint('HomeViewModel: Error fetching properties - $_error');
     } finally {
       _setLoading(false);
     }
@@ -32,6 +30,27 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> refreshProperties() async {
     await fetchProperties();
+  }
+
+  Future<void> retryProperties() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      _properties = await _repository.getProperties();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        final refreshed = await _repository.refreshAccessToken();
+        if (refreshed) {
+          try {
+            _properties = await _repository.getProperties();
+          } catch (retryError) {}
+        }
+      }
+    } catch (e) {
+    } finally {
+      _setLoading(false);
+    }
   }
 
   void _setLoading(bool value) {

@@ -85,4 +85,6 @@ class ApiClient {
       _dio.patch(path, data: data);
 
   Future<Response> delete(String path) => _dio.delete(path);
+
+  Future<bool> refreshAccessToken() => _tryRefreshToken();
 }

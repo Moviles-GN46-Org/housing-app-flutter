@@ -18,6 +18,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final List<NotificationListItem> notifications = const <NotificationListItem>[
+    NotificationListItem(
+      title: 'Notification text blah blah blah blah blah blah',
+      subtitle: '2 min ago',
+    ),
+    NotificationListItem(
+      title: 'Notification text blah blah blah blah blah blah',
+      subtitle: '25 min ago',
+    ),
+    NotificationListItem(
+      title: 'Notification text blah blah blah blah blah blah',
+      subtitle: '1 h ago',
+    ),
+    NotificationListItem(
+      title: 'Notification text blah blah blah blah blah blah',
+      subtitle: 'Yesterday',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => homeVM.fetchProperties(),
+                    onPressed: () => homeVM.retryProperties(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.lightBronze,
                     ),
@@ -95,15 +114,39 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                   leading: Padding(
                     padding: const EdgeInsets.only(left: 12.0),
-                    child: IconButton(
+                    child: PopupMenuButton<void>(
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(
-                        LucideIcons.bell,
-                        color: AppColors.dustyTaupe,
-                        size: 30.0,
+                      color: Colors.transparent,
+                      elevation: 0,
+                      itemBuilder: (BuildContext context) {
+                        return <PopupMenuEntry<void>>[
+                          PopupMenuItem<void>(
+                            enabled: false,
+                            padding: EdgeInsets.zero,
+                            child: NotificationsDropdown(
+                              notifications: notifications,
+                            ),
+                          ),
+                        ];
+                      },
+                      icon: Badge.count(
+                        count: notifications.length,
+                        backgroundColor: AppColors.lightBronze,
+                        isLabelVisible: notifications.isNotEmpty,
+                        offset: const Offset(10, -6),
+                        padding: const EdgeInsets.all(2.0),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.white,
+                          fontFamily: AppTextStyles.fontFamily,
+                        ),
+                        child: const Icon(
+                          LucideIcons.bell,
+                          color: AppColors.dustyTaupe,
+                          size: 30.0,
+                        ),
                       ),
-                      onPressed: () {},
                     ),
                   ),
                   backgroundColor: const Color(0xFFF7E6D5),
@@ -260,6 +303,90 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
               ),
             ),
+    );
+  }
+}
+
+class NotificationListItem {
+  const NotificationListItem({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+}
+
+class NotificationsDropdown extends StatelessWidget {
+  const NotificationsDropdown({required this.notifications, super.key});
+
+  final List<NotificationListItem> notifications;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 420,
+      constraints: const BoxConstraints(maxHeight: 400),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 16,
+              top: 14,
+              right: 16,
+              bottom: 10,
+            ),
+            child: const Text(
+              'Notifications',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.deepMocha,
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE9DDD3)),
+          Flexible(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: notifications.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(height: 1, color: Color(0xFFF1E8E0)),
+              itemBuilder: (BuildContext context, int index) {
+                final NotificationListItem item = notifications[index];
+                return ListTile(
+                  dense: false,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
+                  title: Text(
+                    item.title,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.deepMocha,
+                    ),
+                  ),
+                  subtitle: Text(
+                    item.subtitle,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
