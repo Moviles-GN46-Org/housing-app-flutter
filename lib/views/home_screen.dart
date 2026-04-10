@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/home_viewmodel.dart';
@@ -17,37 +18,39 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final List<NotificationListItem> notifications = const <NotificationListItem>[
-    NotificationListItem(
-      title: 'Notification text blah blah blah blah blah blah',
-      subtitle: '2 min ago',
-    ),
-    NotificationListItem(
-      title: 'Notification text blah blah blah blah blah blah',
-      subtitle: '25 min ago',
-    ),
-    NotificationListItem(
-      title: 'Notification text blah blah blah blah blah blah',
-      subtitle: '1 h ago',
-    ),
-    NotificationListItem(
-      title: 'Notification text blah blah blah blah blah blah',
-      subtitle: 'Yesterday',
-    ),
-  ];
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  late final HomeViewModel _homeVM;
 
   @override
   void initState() {
     super.initState();
+    _homeVM = context.read<HomeViewModel>();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HomeViewModel>().fetchProperties();
+      _homeVM.fetchProperties();
+      _homeVM.fetchNotifications();
+      _homeVM.startNotificationsPolling();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _homeVM.fetchNotifications();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _homeVM.stopNotificationsPolling();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
+    final unreadNotifications = homeVM.unreadNotifications;
 
     return Scaffold(
       backgroundColor: AppColors.linen,
@@ -124,15 +127,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             enabled: false,
                             padding: EdgeInsets.zero,
                             child: NotificationsDropdown(
-                              notifications: notifications,
+                              notifications: unreadNotifications,
                             ),
                           ),
                         ];
                       },
                       icon: Badge.count(
-                        count: notifications.length,
+                        count: unreadNotifications.length,
                         backgroundColor: AppColors.lightBronze,
-                        isLabelVisible: notifications.isNotEmpty,
+                        isLabelVisible: unreadNotifications.isNotEmpty,
                         offset: const Offset(10, -6),
                         padding: const EdgeInsets.all(2.0),
                         textStyle: const TextStyle(
@@ -307,17 +310,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class NotificationListItem {
-  const NotificationListItem({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-}
-
 class NotificationsDropdown extends StatelessWidget {
   const NotificationsDropdown({required this.notifications, super.key});
 
-  final List<NotificationListItem> notifications;
+  final List<AppNotification> notifications;
 
   @override
   Widget build(BuildContext context) {
@@ -351,39 +347,70 @@ class NotificationsDropdown extends StatelessWidget {
           ),
           const Divider(height: 1, color: Color(0xFFE9DDD3)),
           Flexible(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) =>
-                  const Divider(height: 1, color: Color(0xFFF1E8E0)),
-              itemBuilder: (BuildContext context, int index) {
-                final NotificationListItem item = notifications[index];
-                return ListTile(
-                  dense: false,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 2,
-                  ),
-                  title: Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontFamily: AppTextStyles.fontFamily,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.deepMocha,
+            child: notifications.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'No new notifications!',
+                        style: TextStyle(
+                          fontFamily: AppTextStyles.fontFamily,
+                          fontSize: 14,
+                          color: AppColors.dustyTaupe,
+                        ),
+                      ),
                     ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: Color(0xFFF1E8E0)),
+                    itemBuilder: (BuildContext context, int index) {
+                      final AppNotification item = notifications[index];
+                      return ListTile(
+                        dense: false,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 2,
+                        ),
+                        title: Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.deepMocha,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              item.body,
+                              style: const TextStyle(
+                                fontFamily: AppTextStyles.fontFamily,
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat(
+                                'MMM d, y h:mm a',
+                              ).format(item.createdAt.toLocal()),
+                              style: const TextStyle(
+                                fontFamily: AppTextStyles.fontFamily,
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                  subtitle: Text(
-                    item.subtitle,
-                    style: const TextStyle(
-                      fontFamily: AppTextStyles.fontFamily,
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

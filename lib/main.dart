@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/api_client.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/notification_repository.dart';
 import 'repositories/property_repository.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
@@ -17,19 +18,19 @@ void main() async {
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
+  final notificationRepository = NotificationRepository(apiClient);
 
   runApp(
     MultiProvider(
       providers: [
-    ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
-    ChangeNotifierProvider(
-      create: (_) => HomeViewModel(propertyRepository),
-    ),
-    // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
-    ChangeNotifierProvider(
-      create: (_) => MapViewModel(propertyRepository), 
-    ),
-  ],
+        ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
+        ChangeNotifierProvider(
+          create: (_) =>
+              HomeViewModel(propertyRepository, notificationRepository),
+        ),
+        // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
+        ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository)),
+      ],
       child: const UniHousingApp(),
     ),
   );
