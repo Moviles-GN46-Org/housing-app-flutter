@@ -4,13 +4,14 @@ import 'package:provider/provider.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/home_viewmodel.dart';
-import 'map_screen.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 // Main (home) screen with a regular feed of housing listings
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onMapTap});
+
+  final VoidCallback? onMapTap;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -87,11 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 30.0,
                         ),
                         onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const MapScreen(),
-                            ),
-                          );
+                          widget.onMapTap?.call();
                         },
                       ),
                     ),

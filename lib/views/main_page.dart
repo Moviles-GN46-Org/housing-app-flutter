@@ -18,8 +18,14 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int currentPage = 0;
 
-  final List<Widget> pages = [
-    const HomeScreen(),
+  void _changePage(int value) {
+    setState(() {
+      currentPage = value;
+    });
+  }
+
+  List<Widget> get pages => [
+    HomeScreen(onMapTap: () => _changePage(1)),
     const MapScreen(),
     const ChatsScreen(),
     const FeedScreen(),
@@ -40,11 +46,7 @@ class _MainPageState extends State<MainPage> {
           ).copyWith(splashColor: AppColors.lightBronze.withValues(alpha: 0.2)),
           child: BottomNavigationBar(
             currentIndex: currentPage,
-            onTap: (value) {
-              setState(() {
-                currentPage = value;
-              });
-            },
+            onTap: _changePage,
 
             items: const [
               BottomNavigationBarItem(
