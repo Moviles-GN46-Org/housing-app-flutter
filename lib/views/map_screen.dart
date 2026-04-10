@@ -1,10 +1,8 @@
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import '../viewmodels/map_view_model.dart';
 import '../models/property_model.dart';
@@ -22,15 +20,13 @@ class _MapScreenState extends State<MapScreen> {
   ScrollController? _sheetScrollController;
   String? _selectedPropertyId;
 
-  // Approximate measurements used for autoscroll offset math.
   static const double _kSheetHeaderHeight = 68.0;
-  static const double _kCardHeight = 116.0; // 80 image + 24 padding + 12 margin
+  static const double _kCardHeight = 116.0; 
   static const double _kSheetTopPadding = 12.0;
 
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MapViewModel>().initializeMap();
     });
@@ -45,21 +41,13 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onPropertyMarkerTapped(Property p, int index) {
     setState(() => _selectedPropertyId = p.id);
+    _mapController.move(LatLng(p.latitude, p.longitude), _mapController.camera.zoom);
 
-    // Recenter map on the tapped property while keeping current zoom.
-    _mapController.move(
-      LatLng(p.latitude, p.longitude),
-      _mapController.camera.zoom,
-    );
-
-    // Autoscroll the bottom sheet to the selected card.
     final controller = _sheetScrollController;
     if (controller != null && controller.hasClients) {
-      final targetOffset =
-          _kSheetTopPadding + _kSheetHeaderHeight + (index * _kCardHeight);
-      final maxOffset = controller.position.maxScrollExtent;
+      final targetOffset = _kSheetTopPadding + _kSheetHeaderHeight + (index * _kCardHeight);
       controller.animateTo(
-        targetOffset.clamp(0.0, maxOffset),
+        targetOffset.clamp(0.0, controller.position.maxScrollExtent),
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
       );
@@ -69,13 +57,11 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapViewModel = context.watch<MapViewModel>();
-
     final Color primaryColor = AppColors.lightBronze;
     final Color darkColor = AppColors.dustyTaupe;
-    final Color backgroundColor = AppColors.background;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           FlutterMap(
@@ -83,7 +69,6 @@ class _MapScreenState extends State<MapScreen> {
             options: MapOptions(
               initialCenter: const LatLng(4.6020, -74.0650),
               initialZoom: 13.0,
-
               onMapReady: () {
                 if (mapViewModel.userLocation != null) {
                   _mapController.move(mapViewModel.userLocation!, 14.0);
@@ -92,11 +77,9 @@ class _MapScreenState extends State<MapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.uniandes.housing_app',
-                retinaMode: RetinaMode.isHighDensity(context),
               ),
               MarkerLayer(
                 markers: [
@@ -107,11 +90,9 @@ class _MapScreenState extends State<MapScreen> {
                       height: 60,
                       child: _buildUserLocationMarker(),
                     ),
-
                   ...mapViewModel.properties.asMap().entries.map((entry) {
                     final index = entry.key;
                     final p = entry.value;
-                    final isSelected = p.id == _selectedPropertyId;
                     return Marker(
                       point: LatLng(p.latitude, p.longitude),
                       width: 90,
@@ -119,7 +100,7 @@ class _MapScreenState extends State<MapScreen> {
                       alignment: Alignment.bottomCenter,
                       child: _buildPriceMarker(
                         p,
-                        isSelected,
+                        p.id == _selectedPropertyId,
                         primaryColor,
                         () => _onPropertyMarkerTapped(p, index),
                       ),
@@ -142,69 +123,79 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildPriceMarker(
-    Property p,
-    bool isSelected,
-    Color accent,
-    VoidCallback onTap,
-  ) {
-    final Color bg = isSelected ? accent : AppColors.linen;
-    final Color fg = isSelected ? AppColors.linen : AppColors.deepMocha;
-    final Color borderColor = isSelected
-        ? accent
-        : Colors.black.withOpacity(0.08);
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: borderColor, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isSelected ? 0.25 : 0.15),
-                  blurRadius: isSelected ? 10 : 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              _formatPriceMillions(p.monthlyRent),
-              style: TextStyle(
-                color: fg,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+  Widget _buildInsightCard(MapViewModel vm, Color color) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 70,
+      left: 20,
+      right: 20,
+      child: Card(
+        elevation: 8,
+        shadowColor: Colors.black26,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: Colors.white.withOpacity(0.95),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(LucideIcons.activity, color: color, size: 18),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "ESTADÍSTICAS DE ZONA (5KM)",
+                        style: TextStyle(
+                          color: AppColors.dustyTaupe,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatItem("Renta Promedio", vm.averageRentFormatted, LucideIcons.banknote),
+                      _buildStatItem("Densidad Oferta", vm.supplyDensityFormatted, LucideIcons.layers),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          // Pointy tail so the exact geo-coordinate is unambiguous.
-          CustomPaint(
-            size: const Size(12, 7),
-            painter: _MarkerTailPainter(fill: bg, stroke: borderColor),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildUserLocationMarker() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: const Center(
-        child: Icon(
-          LucideIcons.circle_user_round,
-          color: Colors.blue,
-          size: 32,
-        ),
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary.withOpacity(0.6)),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.deepMocha,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -280,8 +271,52 @@ class _MapScreenState extends State<MapScreen> {
                 ],
               ),
             ],
+  Widget _buildPriceMarker(Property p, bool isSelected, Color accent, VoidCallback onTap) {
+    final Color bg = isSelected ? accent : AppColors.linen;
+    final Color fg = isSelected ? AppColors.linen : AppColors.deepMocha;
+    final Color borderColor = isSelected ? accent : Colors.black.withOpacity(0.08);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isSelected ? 0.25 : 0.15),
+                  blurRadius: isSelected ? 10 : 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              _formatPriceMillions(p.monthlyRent),
+              style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w800),
+            ),
           ),
-        ),
+          CustomPaint(
+            size: const Size(12, 7),
+            painter: _MarkerTailPainter(fill: bg, stroke: borderColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserLocationMarker() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        shape: BoxShape.circle,
+      ),
+      child: const Center(
+        child: Icon(LucideIcons.user, color: Colors.blue, size: 32),
       ),
     );
   }
@@ -303,13 +338,9 @@ class _MapScreenState extends State<MapScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
             itemCount: vm.properties.length + 1,
             itemBuilder: (context, index) {
-              if (index == 0)
-                return _buildSheetHandle(handleColor, vm.properties.length);
+              if (index == 0) return _buildSheetHandle(handleColor, vm.properties.length);
               final property = vm.properties[index - 1];
-              return _buildPropertyCard(
-                property,
-                isSelected: property.id == _selectedPropertyId,
-              );
+              return _buildPropertyCard(property, isSelected: property.id == _selectedPropertyId);
             },
           ),
         );
@@ -341,32 +372,19 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildPropertyCard(Property p, {bool isSelected = false}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? AppColors.lightBronze : Colors.transparent,
-          width: 1.5,
-        ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: AppColors.lightBronze.withOpacity(0.35),
-                  blurRadius: 18,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        border: Border.all(color: isSelected ? AppColors.lightBronze : Colors.transparent, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: isSelected ? AppColors.lightBronze.withOpacity(0.2) : Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -378,10 +396,7 @@ class _MapScreenState extends State<MapScreen> {
               child: Image.network(
                 p.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(
-                  color: AppColors.background,
-                  child: const Icon(LucideIcons.house),
-                ),
+                errorBuilder: (c, e, s) => Container(color: AppColors.background, child: const Icon(LucideIcons.house)),
               ),
             ),
           ),
@@ -390,26 +405,12 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  p.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                  maxLines: 1,
-                ),
-                Text(
-                  p.neighborhood,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
+                Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1),
+                Text(p.neighborhood, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text(
-                  '\$${(p.monthlyRent / 1000000).toStringAsFixed(0)}M /mes',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
+                  '\$${(p.monthlyRent / 1000000).toStringAsFixed(1)}M /mes',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 16),
                 ),
               ],
             ),
@@ -422,18 +423,13 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black45,
-      child: const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
+      child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
   }
 }
 
-/// Paints the small downward-pointing triangle that hangs under the price
-/// bubble so the exact geo-coordinate is obvious on the map.
 class _MarkerTailPainter extends CustomPainter {
   _MarkerTailPainter({required this.fill, required this.stroke});
-
   final Color fill;
   final Color stroke;
 
@@ -444,34 +440,13 @@ class _MarkerTailPainter extends CustomPainter {
       ..lineTo(size.width, 0)
       ..lineTo(size.width / 2, size.height)
       ..close();
-
-    // Soft drop shadow so the tail matches the bubble's elevation.
     canvas.drawShadow(path, Colors.black.withOpacity(0.15), 2, false);
-
-    final fillPaint = Paint()
-      ..color = fill
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, fillPaint);
-
-    // Draw only the two slanted edges so the seam with the bubble stays clean.
-    final edgePaint = Paint()
-      ..color = stroke
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(0, 0),
-      Offset(size.width / 2, size.height),
-      edgePaint,
-    );
-    canvas.drawLine(
-      Offset(size.width, 0),
-      Offset(size.width / 2, size.height),
-      edgePaint,
-    );
+    canvas.drawPath(path, Paint()..color = fill..style = PaintingStyle.fill);
+    final edgePaint = Paint()..color = stroke..strokeWidth = 1..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(0, 0), Offset(size.width / 2, size.height), edgePaint);
+    canvas.drawLine(Offset(size.width, 0), Offset(size.width / 2, size.height), edgePaint);
   }
 
   @override
-  bool shouldRepaint(covariant _MarkerTailPainter oldDelegate) =>
-      oldDelegate.fill != fill || oldDelegate.stroke != stroke;
+  bool shouldRepaint(covariant _MarkerTailPainter oldDelegate) => oldDelegate.fill != fill || oldDelegate.stroke != stroke;
 }
