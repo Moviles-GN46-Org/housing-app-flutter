@@ -15,6 +15,24 @@ class AppColors {
   static const Color white = Color(0xFFFEFBF9); // Cards, accent components
 }
 
+class AppShadows {
+  static const List<BoxShadow> card = [
+    BoxShadow(
+      color: Color.fromARGB(29, 60, 46, 38),
+      offset: Offset(0, 4),
+      blurRadius: 6.0,
+    ),
+  ];
+
+  static const List<BoxShadow> small = [
+    BoxShadow(
+      color: Color.fromARGB(10, 60, 46, 38),
+      offset: Offset(2, 4),
+      blurRadius: 3.0,
+    ),
+  ];
+}
+
 class AppTextStyles {
   static const String fontFamily = 'Instrument Sans';
 
