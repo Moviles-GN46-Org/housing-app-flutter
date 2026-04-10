@@ -11,8 +11,8 @@ class MapViewModel extends ChangeNotifier {
 
   MapViewModel(this._propertyRepository);
 
-  List<Property> _allProperties = []; 
-  List<Property> _filteredProperties = []; 
+  List<Property> _allProperties = [];
+  List<Property> _filteredProperties = [];
   List<Property> get properties => _filteredProperties;
 
   LatLng? _userLocation;
@@ -23,8 +23,11 @@ class MapViewModel extends ChangeNotifier {
 
   // --- BQ 1: Renta Promedio ---
   String get averageRentFormatted {
-    if (_filteredProperties.isEmpty) return "Sin viviendas cerca";
-    double total = _filteredProperties.fold(0.0, (sum, item) => sum + item.monthlyRent);
+    if (_filteredProperties.isEmpty) return "No close listings";
+    double total = _filteredProperties.fold(
+      0.0,
+      (sum, item) => sum + item.monthlyRent,
+    );
     double avg = total / _filteredProperties.length;
     return "\$${(avg / 1000000).toStringAsFixed(2)}M COP";
   }
@@ -48,7 +51,6 @@ class MapViewModel extends ChangeNotifier {
       Position position = await _determinePosition();
       _userLocation = LatLng(position.latitude, position.longitude);
 
-
       _allProperties = await _propertyRepository.getProperties();
 
    
@@ -58,7 +60,7 @@ class MapViewModel extends ChangeNotifier {
       await _logSupplyDensityAnalytics();
 
     } catch (e) {
-      debugPrint("Error inicializando mapa: $e");
+      debugPrint("Error initializing map: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -102,12 +104,13 @@ class MapViewModel extends ChangeNotifier {
 
   Future<Position> _determinePosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return Future.error('Servicio de ubicación desactivado.');
+    if (!serviceEnabled) return Future.error('Location services are disabled.');
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return Future.error('Permiso denegado.');
+      if (permission == LocationPermission.denied)
+        return Future.error('Location permission denied.');
     }
     return await Geolocator.getCurrentPosition();
   }
