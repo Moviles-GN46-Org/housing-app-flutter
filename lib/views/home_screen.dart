@@ -908,52 +908,6 @@ class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
 
 // Property card widget
 
-const List<String> mockImageUrls = [
-  'https://blog.urbansa.co/hs-fs/hubfs/Apartamentos%20nuevos%20en%20Bogot%C3%A1%20-%20Apartamentos%20en%20venta%20en%20el%20norte%20de%20Bogot%C3%A1%20-%20Hacienda%20La%20Estancia.jpg?width=1044&name=Apartamentos%20nuevos%20en%20Bogot%C3%A1%20-%20Apartamentos%20en%20venta%20en%20el%20norte%20de%20Bogot%C3%A1%20-%20Hacienda%20La%20Estancia.jpg',
-  'https://cf.bstatic.com/xdata/images/hotel/max1024x768/525542188.jpg?k=7300f00638ff597dbbd047a9a28c09641d7c1c00bf02f1128872981cba781078&o=',
-  'https://www.bienesonline.com/colombia/photos/-vendo-hermoso-apartamento-de-14041mt2-en-chico-bogota-calle-9-APV1976141667526960-224.jpg',
-  'https://d2n37sn7igfnks.cloudfront.net/eyJidWNrZXQiOiJwYWRzLWltYWdlcyIsImtleSI6IjhjMzcyZWE3LWVlNWYtNGJiMS1hNTBhLTc5NWIwZTE1MzhkMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjEyOTEsImZpdCI6Imluc2lkZSJ9fX0=',
-  'https://cf.bstatic.com/xdata/images/hotel/max1024x768/284670598.jpg?k=745352b458a5b698c349339c0403ddaa5e4f76bcab0e6b0da1b6e99a892946ba&o=',
-  'https://cf.bstatic.com/xdata/images/hotel/max1024x768/514869861.jpg?k=08eb5e6c21a7fa1649905bc006bd78fe9836eab7b16012490d519f4c5264b43b&o=',
-  'https://ahead-hosting-x-flats.bogota-hotels-co.net/data/Photos/OriginalPhoto/11686/1168644/1168644481/bogota-flats-photo-1.JPEG',
-  'https://files-api.properstar.com/api/v2/files/a901ef32-a967-4565-a8e2-bf264f11e2ed/1?mode=crop&width=300&height=255&format=jpeg',
-  'https://www.aleroarquitectos.com/wp-content/uploads/2021/11/01-Remodelacion-apartamento-bogota-alero-arquitectos-REM-8102-ALH_BAJA-1280x720.jpg',
-  'https://apartamentos-weeki-en-chapinero.bogotahotelsweb.com/data/Images/OriginalPhoto/17332/1733230/1733230332/image-bogota-apartamentos-weeki-en-chapinero-7.JPEG',
-  'https://storage.googleapis.com/dorotea-prod-files/757_20253112_IMG-20250414-WA0021.jpg',
-  'https://real-candelaria.bogota-hotels-co.net/data/Photos/OriginalPhoto/16202/1620217/1620217977/bogota-rc-apartments-photo-5.JPEG',
-  'https://apartahotel-san-miguel-bogota.bogota-hotels-co.net/data/Photos/OriginalPhoto/11433/1143379/1143379492/bogota-apartamentos-edificio-san-miguel-bogota-photo-5.JPEG',
-  'https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6OTkwNzE4ODgwOTM0NDY2NTk4/original/848c59ae-27e8-497b-9f76-a203b8268bcf.png',
-  'https://revistaaxxis.com.co/wp-content/smush-webp/2025/07/Apto_Catalina-Velasquez_4.png.webp',
-  'https://www.fterrones.com/wp-content/uploads/2026/02/86CE28F0-EC7A-4FAA-964F-5EF5B09614BD_1_105_c.jpeg',
-  'https://xposuremls.com/api/image/0003E9FA.L01',
-  'https://media.houm.com/thumbnail/02ecbc0e-c2d7-4bca-af52-ad753a0adeacproperty02ecbc0ec2d74bcaaf52ad753a0adeac1kc92pwvrxv.jpg',
-  'https://araujoysegovia.com/cdn-cgi/imagedelivery/ekKpICcM-e9ABgm04lukSw/ed3f591a-7615-4b59-4309-4c4fb828e100/public',
-  'https://xposuremls.com/api/image/0004006E.L01',
-];
-
-const List<String> mockRatings = [
-  '4.9',
-  '4.7',
-  '4.8',
-  '4.6',
-  '5.0',
-  '4.5',
-  '4.8',
-  '4.7',
-  '4.9',
-  '4.6',
-  '4.4',
-  '4.9',
-  '4.7',
-  '4.5',
-  '4.8',
-  '4.6',
-  '5.0',
-  '4.7',
-  '4.8',
-  '4.9',
-];
-
 class PropertyCard extends StatelessWidget {
   final Property property;
   final int index;
@@ -981,7 +935,7 @@ class PropertyCard extends StatelessWidget {
                   topRight: Radius.circular(24.0),
                 ),
                 child: Image.network(
-                  mockImageUrls[index % mockImageUrls.length],
+                  property.imageUrl,
                   height: 164,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -1041,7 +995,9 @@ class PropertyCard extends StatelessWidget {
                         ),
                         SizedBox(width: 4),
                         Text(
-                          mockRatings[index % mockRatings.length],
+                          property.averageRating != null
+                              ? property.averageRating!.toStringAsFixed(1)
+                              : '-',
                           style: TextStyle(
                             fontFamily: AppTextStyles.fontFamily,
                             fontSize: 16,
