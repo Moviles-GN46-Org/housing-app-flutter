@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'services/analytics_service.dart';
 import 'services/api_client.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/notification_repository.dart';
 import 'repositories/property_repository.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
@@ -17,19 +19,21 @@ void main() async {
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
+  final notificationRepository = NotificationRepository(apiClient);
+  final analyticsService = AnalyticsService(apiClient);
 
   runApp(
     MultiProvider(
       providers: [
-    ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
-    ChangeNotifierProvider(
-      create: (_) => HomeViewModel(propertyRepository),
-    ),
-    // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
-    ChangeNotifierProvider(
-      create: (_) => MapViewModel(propertyRepository), 
-    ),
-  ],
+        Provider<AnalyticsService>.value(value: analyticsService),
+        ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
+        ChangeNotifierProvider(
+          create: (_) =>
+              HomeViewModel(propertyRepository, notificationRepository),
+        ),
+        // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
+        ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository)),
+      ],
       child: const UniHousingApp(),
     ),
   );
@@ -64,18 +68,49 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  bool _wasAuthenticated = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthViewModel>().checkAuthStatus();
     });
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final authVM = context.read<AuthViewModel>();
+    if (!authVM.isAuthenticated) return;
+    final analytics = context.read<AnalyticsService>();
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      analytics.endSession();
+    } else if (state == AppLifecycleState.resumed) {
+      analytics.startSession();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
+
+    if (authVM.isAuthenticated && !_wasAuthenticated) {
+      _wasAuthenticated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<AnalyticsService>().startSession();
+      });
+    } else if (!authVM.isAuthenticated) {
+      _wasAuthenticated = false;
+    }
 
     if (authVM.isLoading) {
       return const Scaffold(

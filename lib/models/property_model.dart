@@ -8,7 +8,8 @@ class Property {
   final double longitude;
   final int bedrooms;
   final int bathrooms;
-  final String imageUrl; // Nueva propiedad para la imagen
+  final String imageUrl;
+  final double? averageRating;
 
   Property({
     required this.id,
@@ -21,6 +22,7 @@ class Property {
     required this.bedrooms,
     required this.bathrooms,
     required this.imageUrl,
+    this.averageRating,
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -35,12 +37,16 @@ class Property {
       title: json['title'] ?? 'No Title',
       address: json['address'] ?? '',
       neighborhood: json['neighborhood'] ?? '',
-      monthlyRent: double.tryParse(json['monthlyRent']?.toString() ?? '0') ?? 0.0,
+      monthlyRent:
+          double.tryParse(json['monthlyRent']?.toString() ?? '0') ?? 0.0,
       latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
       bedrooms: json['bedrooms'] ?? 0,
       bathrooms: json['bathrooms'] ?? 0,
       imageUrl: firstImage,
+      averageRating: json['averageRating'] != null
+          ? double.tryParse(json['averageRating'].toString())
+          : null,
     );
   }
 }
