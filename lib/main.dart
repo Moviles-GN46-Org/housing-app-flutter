@@ -56,7 +56,7 @@ void main() async {
         ChangeNotifierProxyProvider<HomeViewModel, MainPageViewModel>(
           create: (context) => MainPageViewModel(
             homeViewModel: context.read<HomeViewModel>(),
-            movementStrategy: const SpeedAndDeltaMovementStrategy(
+            movementStrategy: const GpsSpeedMovementStrategy(
               speedThresholdMps: 0.05,
             ),
             proximityStrategy: const RadiusFavoriteProximityStrategy(
@@ -67,7 +67,7 @@ void main() async {
             if (previous == null) {
               return MainPageViewModel(
                 homeViewModel: homeVM,
-                movementStrategy: const SpeedAndDeltaMovementStrategy(
+                movementStrategy: const GpsSpeedMovementStrategy(
                   speedThresholdMps: 0.05,
                 ),
                 proximityStrategy: const RadiusFavoriteProximityStrategy(

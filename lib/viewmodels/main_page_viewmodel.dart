@@ -36,6 +36,9 @@ class MainPageViewModel extends ChangeNotifier {
   int _currentPage = 0;
   String? _debugStatus;
   bool showDebugToasts = false;
+  bool _isCameraScannerActive = false;
+  bool _isPropertyDetailModalOpen = false;
+  bool _isCheckSuppressedForSession = false;
 
   String? get debugStatus => _debugStatus;
 
@@ -49,6 +52,25 @@ class MainPageViewModel extends ChangeNotifier {
 
   void setCurrentPage(int pageIndex) {
     _currentPage = pageIndex;
+  }
+
+  void setCameraScannerActive(bool isActive) {
+    _isCameraScannerActive = isActive;
+  }
+
+  void setPropertyDetailModalOpen(bool isOpen) {
+    _isPropertyDetailModalOpen = isOpen;
+  }
+
+  void suppressChecksForSession() {
+    _isCheckSuppressedForSession = true;
+    _pendingSuggestion = null;
+
+    const nextStatus = 'Monitoring paused - dismissed for this session';
+    if (_debugStatus != nextStatus) {
+      _debugStatus = nextStatus;
+      notifyListeners();
+    }
   }
 
   Future<void> startMonitoring() async {
@@ -92,8 +114,26 @@ class MainPageViewModel extends ChangeNotifier {
   }
 
   void _onPositionUpdate(Position position) {
+    if (_isCheckSuppressedForSession) {
+      _previousPosition = position;
+      return;
+    }
+
     if (_currentPage == 1) {
       _previousPosition = position;
+      return;
+    }
+
+    if (_isCameraScannerActive || _isPropertyDetailModalOpen) {
+      _previousPosition = position;
+
+      final nextStatus = _isCameraScannerActive
+          ? 'Monitoring paused - camera scanner open'
+          : 'Monitoring paused - property detail modal open';
+      if (_debugStatus != nextStatus) {
+        _debugStatus = nextStatus;
+        notifyListeners();
+      }
       return;
     }
 
@@ -119,7 +159,7 @@ class MainPageViewModel extends ChangeNotifier {
 
     if (_homeViewModel.properties.isEmpty ||
         _homeViewModel.favoritePropertyIds.isEmpty) {
-      _debugStatus = 'Moving – no favorites loaded';
+      _debugStatus = 'Moving - no favorites loaded';
       notifyListeners();
       return;
     }
@@ -131,7 +171,7 @@ class MainPageViewModel extends ChangeNotifier {
     );
 
     if (closest == null) {
-      _debugStatus = 'Moving – no favorite in range';
+      _debugStatus = 'Moving - no favorite in range';
       notifyListeners();
       return;
     }
@@ -139,7 +179,7 @@ class MainPageViewModel extends ChangeNotifier {
     if (_lastPromptAt != null &&
         now.difference(_lastPromptAt!) < _promptCooldown &&
         _lastPromptPropertyId == closest.property.id) {
-      _debugStatus = 'Moving – cooldown active for "${closest.property.title}"';
+      _debugStatus = 'Moving - cooldown active for "${closest.property.title}"';
       notifyListeners();
       return;
     }

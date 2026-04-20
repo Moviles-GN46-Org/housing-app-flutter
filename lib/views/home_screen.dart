@@ -6,6 +6,7 @@ import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/home_viewmodel.dart';
+import '../viewmodels/main_page_viewmodel.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 // Main (home) screen with a regular feed of housing listings
@@ -161,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   backgroundColor: const Color(0xFFF7E6D5),
-                  toolbarHeight: 200.0,
+                  toolbarHeight: 184.0,
                   bottom: PreferredSize(
                     preferredSize: Size.fromHeight(0),
                     child: Column(
@@ -352,10 +353,12 @@ class _InAppScannerViewState extends State<_InAppScannerView> {
   void initState() {
     super.initState();
     _controller = MobileScannerController();
+    context.read<MainPageViewModel>().setCameraScannerActive(true);
   }
 
   @override
   void dispose() {
+    context.read<MainPageViewModel>().setCameraScannerActive(false);
     _controller.dispose();
     super.dispose();
   }
@@ -369,26 +372,27 @@ class _InAppScannerViewState extends State<_InAppScannerView> {
 
     _handledDetection = true;
 
-    // Save references before the async gap — context may change after pop.
     final nav = Navigator.of(context);
     final homeVM = context.read<HomeViewModel>();
+    final mainPageVM = context.read<MainPageViewModel>();
 
-    // Kick off the network request BEFORE stopping the camera to maximise
-    // head-start on the round-trip.
     final fetchFuture = homeVM
         .fetchPropertyById(detectedText)
         .timeout(const Duration(seconds: 15), onTimeout: () => null);
 
-    // Stop the camera and wait 500 ms for CameraX to fully drain its
-    // in-flight frame buffer before popping.
     _controller.stop().then((_) async {
       await Future.delayed(const Duration(milliseconds: 500));
       nav.pop();
       if (nav.mounted) {
-        showDialog<void>(
-          context: nav.context,
-          builder: (ctx) => _ScanResultDialog(fetchFuture: fetchFuture),
-        );
+        mainPageVM.setPropertyDetailModalOpen(true);
+        try {
+          await showDialog<void>(
+            context: nav.context,
+            builder: (ctx) => _ScanResultDialog(fetchFuture: fetchFuture),
+          );
+        } finally {
+          mainPageVM.setPropertyDetailModalOpen(false);
+        }
       }
     });
   }
