@@ -33,6 +33,41 @@ class PropertyRepository {
     return [];
   }
 
+  Future<Set<String>> getFavoritePropertyIds() async {
+    final response = await _api.get('/favorites/ids/list');
+
+    if (response.statusCode != 200) return <String>{};
+
+    final responseData = response.data;
+    final dynamic data = responseData is Map<String, dynamic>
+        ? responseData['data']
+        : null;
+
+    final List<dynamic> rawIds = (data is List)
+        ? data
+        : (data is Map<String, dynamic>)
+        ? _extractIdsFromMap(data)
+        : <dynamic>[];
+
+    return rawIds.map((id) => id.toString()).toSet();
+  }
+
+  Future<bool> toggleFavorite(String propertyId) async {
+    final response = await _api.put('/favorites/$propertyId');
+    return response.statusCode == 200;
+  }
+
+  List<dynamic> _extractIdsFromMap(Map<String, dynamic> data) {
+    if (data['ids'] is List) return data['ids'] as List<dynamic>;
+    if (data['favoriteIds'] is List) {
+      return data['favoriteIds'] as List<dynamic>;
+    }
+    if (data['propertyIds'] is List)
+      return data['propertyIds'] as List<dynamic>;
+    if (data['favorites'] is List) return data['favorites'] as List<dynamic>;
+    return <dynamic>[];
+  }
+
   Future<bool> refreshAccessToken() {
     return _api.refreshAccessToken();
   }

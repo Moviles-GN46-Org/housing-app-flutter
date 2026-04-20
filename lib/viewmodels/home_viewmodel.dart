@@ -13,12 +13,15 @@ class HomeViewModel extends ChangeNotifier {
   HomeViewModel(this._repository, this._notificationRepository);
 
   List<Property> _properties = [];
+  Set<String> _favoritePropertyIds = <String>{};
+  Set<String> _favoriteActionInFlight = <String>{};
   List<AppNotification> _notifications = [];
   bool _isLoading = false;
   String? _error;
   Timer? _notificationsPollingTimer;
 
   List<Property> get properties => _properties;
+  Set<String> get favoritePropertyIds => _favoritePropertyIds;
   List<AppNotification> get notifications => _notifications;
   List<AppNotification> get unreadNotifications =>
       _notifications.where((item) => !item.isRead).toList();
@@ -27,12 +30,22 @@ class HomeViewModel extends ChangeNotifier {
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
 
+  Future<Property?> fetchPropertyById(String id) =>
+      _repository.getPropertyById(id);
+
+  bool isFavorite(String propertyId) =>
+      _favoritePropertyIds.contains(propertyId);
+  bool isFavoriteActionInFlight(String propertyId) =>
+      _favoriteActionInFlight.contains(propertyId);
+
   Future<void> fetchProperties() async {
     _setLoading(true);
     _clearError();
 
     try {
       _properties = await _repository.getProperties();
+      _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+      notifyListeners();
     } finally {
       _setLoading(false);
     }
@@ -69,18 +82,61 @@ class HomeViewModel extends ChangeNotifier {
 
     try {
       _properties = await _repository.getProperties();
+      _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+      notifyListeners();
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         final refreshed = await _repository.refreshAccessToken();
         if (refreshed) {
           try {
             _properties = await _repository.getProperties();
+            _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+            notifyListeners();
           } catch (retryError) {}
         }
       }
     } catch (e) {
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<bool> toggleFavorite(String propertyId) async {
+    if (_favoriteActionInFlight.contains(propertyId)) return false;
+
+    _favoriteActionInFlight.add(propertyId);
+    final wasFavorite = _favoritePropertyIds.contains(propertyId);
+
+    if (wasFavorite) {
+      _favoritePropertyIds.remove(propertyId);
+    } else {
+      _favoritePropertyIds.add(propertyId);
+    }
+    notifyListeners();
+
+    try {
+      final success = await _repository.toggleFavorite(propertyId);
+      if (!success) {
+        if (wasFavorite) {
+          _favoritePropertyIds.add(propertyId);
+        } else {
+          _favoritePropertyIds.remove(propertyId);
+        }
+        notifyListeners();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      if (wasFavorite) {
+        _favoritePropertyIds.add(propertyId);
+      } else {
+        _favoritePropertyIds.remove(propertyId);
+      }
+      notifyListeners();
+      return false;
+    } finally {
+      _favoriteActionInFlight.remove(propertyId);
+      notifyListeners();
     }
   }
 
