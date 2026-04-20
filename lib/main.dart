@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/analytics_service.dart';
@@ -21,6 +22,24 @@ void main() async {
   final propertyRepository = PropertyRepository(apiClient);
   final notificationRepository = NotificationRepository(apiClient);
   final analyticsService = AnalyticsService(apiClient);
+
+  FlutterError.onError = (details) {
+    analyticsService.logCrash(
+      screenName: analyticsService.currentScreen ?? 'unknown',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    analyticsService.logCrash(
+      screenName: analyticsService.currentScreen ?? 'unknown',
+      error: error,
+      stackTrace: stack,
+    );
+    return false;
+  };
 
   runApp(
     MultiProvider(

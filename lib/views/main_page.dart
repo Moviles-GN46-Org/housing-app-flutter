@@ -1,12 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'home_screen.dart';
 import 'chats_screen.dart';
 import 'feed_screen.dart';
 import 'roomies_screen.dart';
 import 'profile_screen.dart';
 import 'map_screen.dart';
+import '../services/analytics_service.dart';
 import '../utils/app_theme.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+
+class _ScreenTracker extends StatefulWidget {
+  const _ScreenTracker({required this.screenName, required this.child});
+  final String screenName;
+  final Widget child;
+
+  @override
+  State<_ScreenTracker> createState() => _ScreenTrackerState();
+}
+
+class _ScreenTrackerState extends State<_ScreenTracker> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<AnalyticsService>().currentScreen = widget.screenName;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -25,12 +47,30 @@ class _MainPageState extends State<MainPage> {
   }
 
   List<Widget> get pages => [
-    HomeScreen(onMapTap: () => _changePage(1)),
-    const MapScreen(),
-    const ChatsScreen(),
-    const FeedScreen(),
-    const RoomiesScreen(),
-    const ProfileScreen(),
+    _ScreenTracker(
+      screenName: ScreenName.home,
+      child: HomeScreen(onMapTap: () => _changePage(1)),
+    ),
+    const _ScreenTracker(
+      screenName: ScreenName.mapSearch,
+      child: MapScreen(),
+    ),
+    const _ScreenTracker(
+      screenName: ScreenName.chatScreen,
+      child: ChatsScreen(),
+    ),
+    const _ScreenTracker(
+      screenName: ScreenName.feed,
+      child: FeedScreen(),
+    ),
+    const _ScreenTracker(
+      screenName: ScreenName.roomies,
+      child: RoomiesScreen(),
+    ),
+    const _ScreenTracker(
+      screenName: ScreenName.profileEdit,
+      child: ProfileScreen(),
+    ),
   ];
 
   @override
