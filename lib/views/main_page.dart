@@ -52,7 +52,21 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _onMainPageViewModelChanged() {
-    if (!mounted || _isPromptVisible || currentPage == 1) {
+    if (!mounted) return;
+
+    final status = _mainPageViewModel.debugStatus;
+    if (status != null && _mainPageViewModel.showDebugToasts) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('[Proximity check] $status'),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    if (_isPromptVisible || currentPage == 1) {
       return;
     }
     final suggestion = _mainPageViewModel.consumePendingSuggestion();

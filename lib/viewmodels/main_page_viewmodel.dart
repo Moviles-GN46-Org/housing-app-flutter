@@ -34,6 +34,10 @@ class MainPageViewModel extends ChangeNotifier {
   String? _lastPromptPropertyId;
   MapSuggestion? _pendingSuggestion;
   int _currentPage = 0;
+  String? _debugStatus;
+  bool showDebugToasts = false;
+
+  String? get debugStatus => _debugStatus;
 
   static const Duration _checkThrottle = Duration(seconds: 5);
   static const Duration _promptCooldown = Duration(minutes: 10);
@@ -108,11 +112,15 @@ class MainPageViewModel extends ChangeNotifier {
     _previousPosition = position;
 
     if (!isMoving) {
+      _debugStatus = 'Not moving';
+      notifyListeners();
       return;
     }
 
     if (_homeViewModel.properties.isEmpty ||
         _homeViewModel.favoritePropertyIds.isEmpty) {
+      _debugStatus = 'Moving – no favorites loaded';
+      notifyListeners();
       return;
     }
 
@@ -123,12 +131,16 @@ class MainPageViewModel extends ChangeNotifier {
     );
 
     if (closest == null) {
+      _debugStatus = 'Moving – no favorite in range';
+      notifyListeners();
       return;
     }
 
     if (_lastPromptAt != null &&
         now.difference(_lastPromptAt!) < _promptCooldown &&
         _lastPromptPropertyId == closest.property.id) {
+      _debugStatus = 'Moving – cooldown active for "${closest.property.title}"';
+      notifyListeners();
       return;
     }
 
@@ -138,6 +150,8 @@ class MainPageViewModel extends ChangeNotifier {
       property: closest.property,
       distanceMeters: closest.distanceMeters,
     );
+    _debugStatus =
+        'Nearby favorite: "${closest.property.title}" (${closest.distanceMeters.round()} m away)';
     notifyListeners();
   }
 
