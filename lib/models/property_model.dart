@@ -10,6 +10,7 @@ class Property {
   final int bathrooms;
   final String imageUrl;
   final double? averageRating;
+  final String? description;
 
   Property({
     required this.id,
@@ -23,11 +24,13 @@ class Property {
     required this.bathrooms,
     required this.imageUrl,
     this.averageRating,
+    this.description,
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
     // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
-    String firstImage = 'https://via.placeholder.com/400x300.png?text=No+Image';
+    String firstImage =
+        'https://static.vecteezy.com/system/resources/previews/056/506/951/non_2x/this-is-a-simple-illustration-of-a-house-vector.jpg';
     if (json['imageUrls'] != null && (json['imageUrls'] as List).isNotEmpty) {
       firstImage = json['imageUrls'][0];
     }
@@ -47,6 +50,7 @@ class Property {
       averageRating: json['averageRating'] != null
           ? double.tryParse(json['averageRating'].toString())
           : null,
+      description: json['description']?.toString(),
     );
   }
 }

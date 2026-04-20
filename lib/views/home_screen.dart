@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             PageRouteBuilder<void>(
                               transitionDuration: Duration.zero,
                               reverseTransitionDuration: Duration.zero,
-                              pageBuilder: (_, __, ___) =>
+                              pageBuilder: (_, _, _) =>
                                   const _InAppScannerView(),
                             ),
                           );
@@ -384,10 +384,12 @@ class _InAppScannerViewState extends State<_InAppScannerView> {
     _controller.stop().then((_) async {
       await Future.delayed(const Duration(milliseconds: 500));
       nav.pop();
-      showDialog<void>(
-        context: nav.context,
-        builder: (ctx) => _ScanResultDialog(fetchFuture: fetchFuture),
-      );
+      if (nav.mounted) {
+        showDialog<void>(
+          context: nav.context,
+          builder: (ctx) => _ScanResultDialog(fetchFuture: fetchFuture),
+        );
+      }
     });
   }
 
@@ -440,6 +442,7 @@ class _ScanResultDialogState extends State<_ScanResultDialog> {
   Property? _property;
   bool _loading = true;
   bool _notFound = false;
+  bool _favoriteLoading = false;
 
   @override
   void initState() {
@@ -458,15 +461,37 @@ class _ScanResultDialogState extends State<_ScanResultDialog> {
   Widget build(BuildContext context) {
     if (_loading) {
       return AlertDialog(
-        title: const Text('Property found'),
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        title: const Text(
+          'Scanning property',
+          style: TextStyle(
+            fontFamily: AppTextStyles.fontFamily,
+            color: AppColors.deepMocha,
+            fontWeight: FontWeight.w700,
+            fontSize: 19,
+          ),
+        ),
         content: const SizedBox(
           height: 48,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.lightBronze),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                color: AppColors.dustyTaupe,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       );
@@ -474,12 +499,40 @@ class _ScanResultDialogState extends State<_ScanResultDialog> {
 
     if (_notFound) {
       return AlertDialog(
-        title: const Text('Property not found'),
-        content: const Text('No property matched this QR code.'),
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        title: const Text(
+          'Property not found',
+          style: TextStyle(
+            fontFamily: AppTextStyles.fontFamily,
+            color: AppColors.deepMocha,
+            fontWeight: FontWeight.w700,
+            fontSize: 19,
+          ),
+        ),
+        content: const Text(
+          'No property matched this QR code.',
+          style: TextStyle(
+            fontFamily: AppTextStyles.fontFamily,
+            color: AppColors.dustyTaupe,
+            fontSize: 15,
+            height: 1.35,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: const Text(
+              'Close',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                color: AppColors.dustyTaupe,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       );
@@ -488,48 +541,218 @@ class _ScanResultDialogState extends State<_ScanResultDialog> {
     final property = _property!;
 
     return AlertDialog(
+      backgroundColor: AppColors.white,
       contentPadding: EdgeInsets.zero,
       clipBehavior: Clip.hardEdge,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Image.network(
-              property.imageUrl,
-              height: 180,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 180,
-                color: const Color(0xFFD9CEC8),
-                child: const Icon(
-                  LucideIcons.house,
-                  size: 48,
-                  color: AppColors.dustyTaupe,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              child: Image.network(
+                property.imageUrl,
+                height: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  height: 200,
+                  color: const Color(0xFFD9CEC8),
+                  child: const Icon(
+                    LucideIcons.house,
+                    size: 48,
+                    color: AppColors.dustyTaupe,
+                  ),
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-            child: Text(
-              property.title,
-              style: const TextStyle(
-                fontFamily: AppTextStyles.fontFamily,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.deepMocha,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    property.title,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.deepMocha,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.map_pin,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    property.neighborhood.isNotEmpty
+                                        ? property.neighborhood
+                                        : property.address,
+                                    style: const TextStyle(
+                                      fontFamily: AppTextStyles.fontFamily,
+                                      fontSize: 14,
+                                      color: AppColors.dustyTaupe,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.bed_single,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${property.bedrooms} Bed \u00b7 ${property.bathrooms} Bath',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 14,
+                                    color: AppColors.dustyTaupe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IntrinsicWidth(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightBronze,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '\$${NumberFormat('#,###').format(property.monthlyRent.toInt())}',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' /mo',
+                                  style: TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (property.description != null &&
+                      property.description!.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    const Divider(color: Color(0xFFEDE0D8), height: 1),
+                    const SizedBox(height: 14),
+                    Text(
+                      property.description!,
+                      style: const TextStyle(
+                        fontFamily: AppTextStyles.fontFamily,
+                        fontSize: 14,
+                        color: AppColors.dustyTaupe,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: const Text(
+            'Close',
+            style: TextStyle(
+              fontFamily: AppTextStyles.fontFamily,
+              color: AppColors.dustyTaupe,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Consumer<HomeViewModel>(
+          builder: (ctx, homeVM, _) {
+            final isFav = homeVM.isFavorite(property.id);
+            return ElevatedButton.icon(
+              onPressed: _favoriteLoading
+                  ? null
+                  : () async {
+                      setState(() => _favoriteLoading = true);
+                      await homeVM.toggleFavorite(property.id);
+                      if (mounted) setState(() => _favoriteLoading = false);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.lightBronze,
+                foregroundColor: AppColors.white,
+                disabledBackgroundColor: AppColors.lightBronze.withAlpha(153),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: _favoriteLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.white,
+                      ),
+                    )
+                  : Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      size: 18,
+                    ),
+              label: Text(
+                isFav ? 'Saved' : 'Save',
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fontFamily,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
