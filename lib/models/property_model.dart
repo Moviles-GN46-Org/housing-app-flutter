@@ -27,10 +27,14 @@ class Property {
     this.description,
   });
 
+  static const String _noImagePlaceholder =
+      'https://static.vecteezy.com/system/resources/previews/056/506/951/non_2x/this-is-a-simple-illustration-of-a-house-vector.jpg';
+
+  bool get hasImage => imageUrl != _noImagePlaceholder;
+
   factory Property.fromJson(Map<String, dynamic> json) {
     // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
-    String firstImage =
-        'https://static.vecteezy.com/system/resources/previews/056/506/951/non_2x/this-is-a-simple-illustration-of-a-house-vector.jpg';
+    String firstImage = Property._noImagePlaceholder;
     if (json['imageUrls'] != null && (json['imageUrls'] as List).isNotEmpty) {
       firstImage = json['imageUrls'][0];
     }

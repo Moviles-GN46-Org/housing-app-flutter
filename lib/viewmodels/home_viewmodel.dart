@@ -20,7 +20,18 @@ class HomeViewModel extends ChangeNotifier {
   String? _error;
   Timer? _notificationsPollingTimer;
 
-  List<Property> get properties => _properties;
+  List<Property> get properties {
+    final sorted = List<Property>.from(_properties);
+    sorted.sort((a, b) {
+      final aFav = _favoritePropertyIds.contains(a.id);
+      final bFav = _favoritePropertyIds.contains(b.id);
+      if (aFav != bFav) return aFav ? -1 : 1;
+      if (a.hasImage != b.hasImage) return a.hasImage ? -1 : 1;
+      return 0;
+    });
+    return sorted;
+  }
+
   Set<String> get favoritePropertyIds => _favoritePropertyIds;
   List<AppNotification> get notifications => _notifications;
   List<AppNotification> get unreadNotifications =>
