@@ -30,6 +30,9 @@ class HomeViewModel extends ChangeNotifier {
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
 
+  Future<Property?> fetchPropertyById(String id) =>
+      _repository.getPropertyById(id);
+
   bool isFavorite(String propertyId) =>
       _favoritePropertyIds.contains(propertyId);
   bool isFavoriteActionInFlight(String propertyId) =>

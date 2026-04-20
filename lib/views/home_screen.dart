@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../models/app_notification.dart';
 import '../models/property_model.dart';
@@ -105,12 +106,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         icon: const Icon(
-                          LucideIcons.map_pin,
+                          LucideIcons.scan_line,
                           color: AppColors.dustyTaupe,
                           size: 30.0,
                         ),
                         onPressed: () {
-                          widget.onMapTap?.call();
+                          Navigator.of(context).push(
+                            PageRouteBuilder<void>(
+                              transitionDuration: Duration.zero,
+                              reverseTransitionDuration: Duration.zero,
+                              pageBuilder: (_, __, ___) =>
+                                  const _InAppScannerView(),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -325,6 +333,205 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
               ),
             ),
+    );
+  }
+}
+
+class _InAppScannerView extends StatefulWidget {
+  const _InAppScannerView();
+
+  @override
+  State<_InAppScannerView> createState() => _InAppScannerViewState();
+}
+
+class _InAppScannerViewState extends State<_InAppScannerView> {
+  late final MobileScannerController _controller;
+  bool _handledDetection = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleDetection(BarcodeCapture capture) {
+    if (_handledDetection) return;
+    if (capture.barcodes.isEmpty) return;
+
+    final detectedText = capture.barcodes.first.rawValue?.trim();
+    if (detectedText == null || detectedText.isEmpty) return;
+
+    _handledDetection = true;
+
+    // Save references before the async gap — context may change after pop.
+    final nav = Navigator.of(context);
+    final homeVM = context.read<HomeViewModel>();
+
+    // Kick off the network request BEFORE stopping the camera to maximise
+    // head-start on the round-trip.
+    final fetchFuture = homeVM
+        .fetchPropertyById(detectedText)
+        .timeout(const Duration(seconds: 15), onTimeout: () => null);
+
+    // Stop the camera and wait 500 ms for CameraX to fully drain its
+    // in-flight frame buffer before popping.
+    _controller.stop().then((_) async {
+      await Future.delayed(const Duration(milliseconds: 500));
+      nav.pop();
+      showDialog<void>(
+        context: nav.context,
+        builder: (ctx) => _ScanResultDialog(fetchFuture: fetchFuture),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: MobileScanner(
+                controller: _controller,
+                onDetect: _handleDetection,
+              ),
+            ),
+            Positioned(
+              left: 16,
+              top: 16,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final nav = Navigator.of(context);
+                  await _controller.stop();
+                  await Future.delayed(const Duration(milliseconds: 300));
+                  if (mounted) nav.pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.lightBronze,
+                  foregroundColor: AppColors.white,
+                ),
+                child: const Text('Go back'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanResultDialog extends StatefulWidget {
+  const _ScanResultDialog({required this.fetchFuture});
+  final Future<Property?> fetchFuture;
+
+  @override
+  State<_ScanResultDialog> createState() => _ScanResultDialogState();
+}
+
+class _ScanResultDialogState extends State<_ScanResultDialog> {
+  Property? _property;
+  bool _loading = true;
+  bool _notFound = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.fetchFuture.then((p) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _property = p;
+        _notFound = p == null;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return AlertDialog(
+        title: const Text('Property found'),
+        content: const SizedBox(
+          height: 48,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
+
+    if (_notFound) {
+      return AlertDialog(
+        title: const Text('Property not found'),
+        content: const Text('No property matched this QR code.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
+
+    final property = _property!;
+
+    return AlertDialog(
+      contentPadding: EdgeInsets.zero,
+      clipBehavior: Clip.hardEdge,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Image.network(
+              property.imageUrl,
+              height: 180,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: 180,
+                color: const Color(0xFFD9CEC8),
+                child: const Icon(
+                  LucideIcons.house,
+                  size: 48,
+                  color: AppColors.dustyTaupe,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: Text(
+              property.title,
+              style: const TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.deepMocha,
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }
