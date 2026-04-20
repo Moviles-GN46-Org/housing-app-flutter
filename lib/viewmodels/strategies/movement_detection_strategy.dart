@@ -7,20 +7,30 @@ abstract class MovementDetectionStrategy {
   });
 }
 
-class SpeedAndDeltaMovementStrategy implements MovementDetectionStrategy {
+class GpsSpeedMovementStrategy implements MovementDetectionStrategy {
   final double speedThresholdMps;
 
-  const SpeedAndDeltaMovementStrategy({required this.speedThresholdMps});
+  const GpsSpeedMovementStrategy({required this.speedThresholdMps});
 
   @override
   bool isMoving({
     required Position currentPosition,
     required Position? previousPosition,
   }) {
-    if (currentPosition.speed >= speedThresholdMps) {
-      return true;
-    }
+    return currentPosition.speed >= speedThresholdMps;
+  }
+}
 
+class DeltaPositionMovementStrategy implements MovementDetectionStrategy {
+  final double speedThresholdMps;
+
+  const DeltaPositionMovementStrategy({required this.speedThresholdMps});
+
+  @override
+  bool isMoving({
+    required Position currentPosition,
+    required Position? previousPosition,
+  }) {
     if (previousPosition == null) {
       return false;
     }

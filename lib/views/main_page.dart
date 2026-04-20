@@ -177,7 +177,10 @@ class _MainPageState extends State<MainPage> {
 
     if (shouldOpenMap == true && mounted) {
       _changePage(1);
+      return;
     }
+
+    _mainPageViewModel.suppressChecksForSession();
   }
 
   List<Widget> get pages => [
@@ -185,18 +188,12 @@ class _MainPageState extends State<MainPage> {
       screenName: ScreenName.home,
       child: HomeScreen(onMapTap: () => _changePage(1)),
     ),
-    const _ScreenTracker(
-      screenName: ScreenName.mapSearch,
-      child: MapScreen(),
-    ),
+    const _ScreenTracker(screenName: ScreenName.mapSearch, child: MapScreen()),
     const _ScreenTracker(
       screenName: ScreenName.chatScreen,
       child: ChatsScreen(),
     ),
-    const _ScreenTracker(
-      screenName: ScreenName.feed,
-      child: FeedScreen(),
-    ),
+    const _ScreenTracker(screenName: ScreenName.feed, child: FeedScreen()),
     const _ScreenTracker(
       screenName: ScreenName.roomies,
       child: RoomiesScreen(),
@@ -221,7 +218,6 @@ class _MainPageState extends State<MainPage> {
           child: BottomNavigationBar(
             currentIndex: currentPage,
             onTap: _changePage,
-
             items: const [
               BottomNavigationBarItem(
                 icon: Padding(
