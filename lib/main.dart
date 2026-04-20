@@ -8,7 +8,10 @@ import 'repositories/property_repository.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
+import 'viewmodels/main_page_viewmodel.dart';
 import 'viewmodels/map_view_model.dart';
+import 'viewmodels/strategies/favorite_proximity_strategy.dart';
+import 'viewmodels/strategies/movement_detection_strategy.dart';
 import 'views/auth/login_screen.dart';
 import 'views/auth/verify_email_screen.dart';
 import 'views/main_page.dart';
@@ -30,6 +33,32 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) =>
               HomeViewModel(propertyRepository, notificationRepository),
+        ),
+        ChangeNotifierProxyProvider<HomeViewModel, MainPageViewModel>(
+          create: (context) => MainPageViewModel(
+            homeViewModel: context.read<HomeViewModel>(),
+            movementStrategy: const SpeedAndDeltaMovementStrategy(
+              speedThresholdMps: 0.05,
+            ),
+            proximityStrategy: const RadiusFavoriteProximityStrategy(
+              radiusMeters: 5000.0,
+            ),
+          ),
+          update: (context, homeVM, previous) {
+            if (previous == null) {
+              return MainPageViewModel(
+                homeViewModel: homeVM,
+                movementStrategy: const SpeedAndDeltaMovementStrategy(
+                  speedThresholdMps: 0.05,
+                ),
+                proximityStrategy: const RadiusFavoriteProximityStrategy(
+                  radiusMeters: 5000.0,
+                ),
+              );
+            }
+            previous.updateHomeViewModel(homeVM);
+            return previous;
+          },
         ),
         // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
         ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository)),
