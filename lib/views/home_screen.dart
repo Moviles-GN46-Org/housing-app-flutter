@@ -298,6 +298,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ((int, Property) entry) => PropertyCard(
                                 property: entry.$2,
                                 index: entry.$1,
+                                isFavorite: homeVM.isFavorite(entry.$2.id),
+                                isFavoriteLoading: homeVM
+                                    .isFavoriteActionInFlight(entry.$2.id),
+                                onFavoriteTap: () async {
+                                  final success = await homeVM.toggleFavorite(
+                                    entry.$2.id,
+                                  );
+                                  if (!success && context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Unable to update favorite right now',
+                                          ),
+                                        ),
+                                      );
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(height: 110),
@@ -911,8 +930,18 @@ class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
 class PropertyCard extends StatelessWidget {
   final Property property;
   final int index;
+  final bool isFavorite;
+  final bool isFavoriteLoading;
+  final VoidCallback onFavoriteTap;
 
-  const PropertyCard({super.key, required this.property, required this.index});
+  const PropertyCard({
+    super.key,
+    required this.property,
+    required this.index,
+    required this.isFavorite,
+    required this.isFavoriteLoading,
+    required this.onFavoriteTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -949,18 +978,42 @@ class PropertyCard extends StatelessWidget {
               Positioned(
                 top: 12,
                 right: 12,
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBronze,
-                    shape: BoxShape.circle,
-                    boxShadow: AppShadows.small,
-                  ),
-                  child: const Icon(
-                    LucideIcons.heart,
-                    color: AppColors.white,
-                    size: 30,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isFavoriteLoading ? null : onFavoriteTap,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: isFavorite
+                            ? AppColors.lightBronze
+                            : const Color(0xB3FFFFFF),
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.small,
+                      ),
+                      child: Center(
+                        child: isFavoriteLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: AppColors.lightBronze,
+                                ),
+                              )
+                            : Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isFavorite
+                                    ? AppColors.white
+                                    : AppColors.lightBronze,
+                                size: 28,
+                              ),
+                      ),
+                    ),
                   ),
                 ),
               ),
