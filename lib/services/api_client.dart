@@ -14,7 +14,7 @@ class ApiClient {
 
   // Ngrok URL
   static const String _baseUrl =
-      'https://nonelementary-nonexpressive-brooklyn.ngrok-free.dev/api';
+      'http://localhost:3000/api';
 
   final Dio _dio;
 

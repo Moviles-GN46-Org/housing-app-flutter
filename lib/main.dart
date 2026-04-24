@@ -16,14 +16,22 @@ import 'viewmodels/strategies/movement_detection_strategy.dart';
 import 'views/auth/login_screen.dart';
 import 'views/auth/verify_email_screen.dart';
 import 'views/main_page.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:housing_app_flutter/models/local_event.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  Hive.registerAdapter(LocalEventAdapter());
+  await Hive.openBox<LocalEvent>('pending_locations');
 
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
   final notificationRepository = NotificationRepository(apiClient);
+  
+  
   final analyticsService = AnalyticsService(apiClient);
 
   FlutterError.onError = (details) {
@@ -79,8 +87,7 @@ void main() async {
             return previous;
           },
         ),
-        // CAMBIO AQUÍ: Pasa la variable propertyRepository directamente
-        ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository)),
+        ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository,analyticsService,)),
       ],
       child: const UniHousingApp(),
     ),

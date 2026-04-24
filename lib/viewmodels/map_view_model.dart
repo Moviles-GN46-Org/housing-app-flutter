@@ -3,13 +3,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/property_model.dart';
 import '../repositories/property_repository.dart';
-import '../services/api_client.dart';
-
+import '../services/analytics_service.dart'; 
 class MapViewModel extends ChangeNotifier {
   final PropertyRepository _propertyRepository;
-  final ApiClient _apiClient = ApiClient();
+  final AnalyticsService _analyticsService; 
 
-  MapViewModel(this._propertyRepository);
+  MapViewModel(this._propertyRepository, this._analyticsService);
 
   List<Property> _allProperties = [];
   List<Property> _filteredProperties = [];
@@ -21,9 +20,9 @@ class MapViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // --- BQ 1: Renta Promedio ---
+
   String get averageRentFormatted {
-    if (_filteredProperties.isEmpty) return "No close listings";
+    if (_filteredProperties.isEmpty) return "No hay ofertas cerca";
     double total = _filteredProperties.fold(
       0.0,
       (sum, item) => sum + item.monthlyRent,
@@ -32,7 +31,7 @@ class MapViewModel extends ChangeNotifier {
     return "\$${(avg / 1000000).toStringAsFixed(2)}M COP";
   }
 
-  // --- BQ 2: Densidad de Oferta ---
+
   double get supplyDensity {
     if (_allProperties.isEmpty) return 0.0;
     return _filteredProperties.length / _allProperties.length;
@@ -47,16 +46,18 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-  
+
       Position position = await _determinePosition();
       _userLocation = LatLng(position.latitude, position.longitude);
 
-      _allProperties = await _propertyRepository.getProperties();
 
-   
+      await _analyticsService.logLocationBQ(position.latitude, position.longitude);
+
+
+      _allProperties = await _propertyRepository.getProperties();
       _filterPropertiesByDistance();
       
-   
+
       await _logSupplyDensityAnalytics();
 
     } catch (e) {
@@ -78,28 +79,18 @@ class MapViewModel extends ChangeNotifier {
         _userLocation!,
         LatLng(p.latitude, p.longitude),
       );
-
-      return km <= 2.0; 
+      return km <= 1.0; 
     }).toList();
   }
 
   Future<void> _logSupplyDensityAnalytics() async {
-    try {
-      await _apiClient.post('/analytics/events', data: {
-        "sessionId": "session_${DateTime.now().millisecondsSinceEpoch}",
-        "eventType": "SUPPLY_DENSITY_CHECK",
-        "payload": {
-          "value": supplyDensity,
-          "nearby_count": _filteredProperties.length,
-          "total_count": _allProperties.length,
-          "coords": "${_userLocation?.latitude},${_userLocation?.longitude}"
-        },
-        "screenName": "MapScreen"
-      });
-      debugPrint("Analítica de densidad enviada.");
-    } catch (e) {
-      debugPrint("Error al enviar analítica: $e");
-    }
+    await _analyticsService.logGenericEvent('SUPPLY_DENSITY_CHECK', {
+      "value": supplyDensity,
+      "nearby_count": _filteredProperties.length,
+      "total_count": _allProperties.length,
+      "coords": "${_userLocation?.latitude},${_userLocation?.longitude}"
+    });
+    debugPrint("Analítica de densidad procesada vía Outbox.");
   }
 
   Future<Position> _determinePosition() async {
