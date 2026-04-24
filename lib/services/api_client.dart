@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+
 import 'storage_service.dart';
 
 class ApiClient {
@@ -28,8 +32,33 @@ class ApiClient {
         ),
       ) {
     _dio.interceptors.add(
+      InterceptorsWrapper(onRequest: _checkConnectivity),
+    );
+    _dio.interceptors.add(
       InterceptorsWrapper(onRequest: _attachToken, onError: _handleError),
     );
+  }
+
+  Future<void> _checkConnectivity(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    final results = await Connectivity().checkConnectivity();
+    final offline =
+        results.isEmpty ||
+        results.every((r) => r == ConnectivityResult.none);
+
+    if (offline) {
+      return handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+          error: const SocketException('No internet connection'),
+          message: 'No internet connection',
+        ),
+      );
+    }
+    handler.next(options);
   }
 
   Future<void> _attachToken(

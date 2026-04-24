@@ -1,12 +1,18 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../repositories/auth_repository.dart';
 import '../services/storage_service.dart';
+import '../services/user_cache_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _repository;
+  final UserCacheService _userCache;
 
-  AuthViewModel(this._repository);
+  AuthViewModel(this._repository, {UserCacheService? userCache})
+    : _userCache = userCache ?? UserCacheService();
 
   User? _currentUser;
   bool _isLoading = false;
@@ -33,6 +39,7 @@ class AuthViewModel extends ChangeNotifier {
       );
 
       _currentUser = response.user;
+      await _userCache.write(response.user);
     } on Exception catch (e) {
       _error = _parseError(e);
     } finally {
@@ -67,6 +74,7 @@ class AuthViewModel extends ChangeNotifier {
       );
 
       _currentUser = response.user;
+      await _userCache.write(response.user);
     } on Exception catch (e) {
       _error = _parseError(e);
     } finally {
@@ -75,18 +83,68 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
-    final token = await StorageService.getAccessToken();
-    if (token == null) return;
+    // No stored token, or it's expired and unrecoverable without the network.
+    // AuthGate will route to the login screen; any attempt to log in offline
+    // is blocked by the ApiClient connectivity interceptor.
+    if (!await StorageService.hasValidAccessToken()) {
+      return;
+    }
 
     _setLoading(true);
 
     try {
-      _currentUser = await _repository.getMe();
+      final fresh = await _repository.getMe();
+      _currentUser = fresh;
+      await _userCache.write(fresh);
+    } on DioException catch (e) {
+      if (_isOfflineError(e)) {
+        // Offline with a still-valid token: trust what we have on disk.
+        // The cached user gives us names/email; the JWT claims are the
+        // fallback for a first-offline-open with no cache yet.
+        _currentUser =
+            await _userCache.read() ?? await _userFromTokenClaims();
+      } else {
+        // A real auth failure (401, 403, etc.) — cached session is invalid.
+        await StorageService.clearTokens();
+        await _userCache.clear();
+      }
     } on Exception {
       await StorageService.clearTokens();
+      await _userCache.clear();
     } finally {
       _setLoading(false);
     }
+  }
+
+  bool _isOfflineError(DioException e) {
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.error is SocketException;
+  }
+
+  // Last-resort user hydration when we have a valid JWT but no cached `User`
+  // yet (e.g. app updated and lost cache, but token is still live). The JWT
+  // only carries { userId, role, isVerified }, so names/email are empty
+  // until the next successful getMe() refreshes the cache.
+  Future<User?> _userFromTokenClaims() async {
+    final payload = await StorageService.decodeAccessTokenPayload();
+    if (payload == null) return null;
+    final id = payload['userId'];
+    final role = payload['role'];
+    final isVerified = payload['isVerified'];
+    if (id is! String || role is! String || isVerified is! bool) return null;
+
+    return User(
+      id: id,
+      email: '',
+      firstName: '',
+      lastName: '',
+      role: role,
+      isVerified: isVerified,
+      authProvider: 'local',
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
   }
 
   Future<void> verifyEmail({required String code}) async {
@@ -102,6 +160,7 @@ class AuthViewModel extends ChangeNotifier {
       );
 
       _currentUser = response.user;
+      await _userCache.write(response.user);
     } on Exception catch (e) {
       _error = _parseError(e);
     } finally {
@@ -124,6 +183,7 @@ class AuthViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     await StorageService.clearTokens();
+    await _userCache.clear();
     _currentUser = null;
     _error = null;
     notifyListeners();
