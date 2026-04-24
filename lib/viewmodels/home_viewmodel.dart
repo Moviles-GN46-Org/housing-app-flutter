@@ -1,22 +1,37 @@
-import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
 import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../repositories/notification_repository.dart';
 import '../repositories/property_repository.dart';
+import '../services/property_cache_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final PropertyRepository _repository;
   final NotificationRepository _notificationRepository;
+  final PropertyCacheService _cache;
 
-  HomeViewModel(this._repository, this._notificationRepository);
+  HomeViewModel(
+    this._repository,
+    this._notificationRepository, {
+    PropertyCacheService? cache,
+  }) : _cache = cache ?? PropertyCacheService();
+
+  static const int _pageSize = 10;
 
   List<Property> _properties = [];
   Set<String> _favoritePropertyIds = <String>{};
-  Set<String> _favoriteActionInFlight = <String>{};
+  final Set<String> _favoriteActionInFlight = <String>{};
   List<AppNotification> _notifications = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _isFromCache = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  DateTime? _cachedAt;
   String? _error;
   Timer? _notificationsPollingTimer;
 
@@ -27,6 +42,10 @@ class HomeViewModel extends ChangeNotifier {
       _notifications.where((item) => !item.isRead).toList();
   int get unreadNotificationsCount => unreadNotifications.length;
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get isFromCache => _isFromCache;
+  bool get hasMore => _hasMore;
+  DateTime? get cachedAt => _cachedAt;
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
 
@@ -38,16 +57,77 @@ class HomeViewModel extends ChangeNotifier {
   bool isFavoriteActionInFlight(String propertyId) =>
       _favoriteActionInFlight.contains(propertyId);
 
+  // Cache-then-network: paint cached properties instantly, then replace them
+  // with fresh data if the network call succeeds. If we're offline, whatever
+  // is on screen stays on screen.
   Future<void> fetchProperties() async {
-    _setLoading(true);
     _clearError();
 
-    try {
-      _properties = await _repository.getProperties();
-      _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+    final cached = await _cache.readFirstPage();
+    if (cached != null && cached.isNotEmpty) {
+      _properties = cached;
+      _isFromCache = true;
+      _cachedAt = await _cache.readCachedAt();
+      _hasMore = cached.length >= _pageSize;
+      _currentPage = 1;
       notifyListeners();
+    }
+
+    _setLoading(true);
+    try {
+      final page = await _repository.getPropertiesPage(
+        page: 1,
+        limit: _pageSize,
+      );
+      _properties = page.items;
+      _currentPage = page.page;
+      _hasMore = page.hasMore;
+      _isFromCache = false;
+      _cachedAt = null;
+      await _cache.writeFirstPage(page.items);
+
+      // Favorites live on a different endpoint. their success is independent
+      // of the property fetch. If offline, leave whatever we already have.
+      try {
+        _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+      } on DioException {
+        // keep previous favorites in memory
+      }
+      notifyListeners();
+    } on DioException catch (e) {
+      if (_properties.isEmpty) {
+        _error = _isOffline(e)
+            ? 'No connection and no cached listings yet'
+            : 'Error loading listings';
+        notifyListeners();
+      }
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> loadNextPage() async {
+    if (_isLoadingMore || !_hasMore || _isLoading) return;
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final next = await _repository.getPropertiesPage(
+        page: _currentPage + 1,
+        limit: _pageSize,
+      );
+      if (next.items.isNotEmpty) {
+        _properties = [..._properties, ...next.items];
+        _currentPage = next.page;
+      }
+      _hasMore = next.hasMore;
+    } on DioException {
+      // Offline or server error while paginating: stop trying to load more for
+      // this session; the user can retry by pulling-to-refresh (retryProperties).
+      _hasMore = false;
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
     }
   }
 
@@ -77,28 +157,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   Future<void> retryProperties() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      _properties = await _repository.getProperties();
-      _favoritePropertyIds = await _repository.getFavoritePropertyIds();
-      notifyListeners();
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        final refreshed = await _repository.refreshAccessToken();
-        if (refreshed) {
-          try {
-            _properties = await _repository.getProperties();
-            _favoritePropertyIds = await _repository.getFavoritePropertyIds();
-            notifyListeners();
-          } catch (retryError) {}
-        }
-      }
-    } catch (e) {
-    } finally {
-      _setLoading(false);
-    }
+    await fetchProperties();
   }
 
   Future<bool> toggleFavorite(String propertyId) async {
@@ -140,6 +199,11 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
+  bool _isOffline(DioException e) {
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout;
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
@@ -147,7 +211,6 @@ class HomeViewModel extends ChangeNotifier {
 
   void _clearError() {
     _error = null;
-    notifyListeners();
   }
 
   @override

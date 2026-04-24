@@ -27,6 +27,25 @@ class Property {
     this.description,
   });
 
+  Map<String, dynamic> toJson() {
+    // Mirrors the backend shape so cached blobs round-trip cleanly through
+    // Property.fromJson. imageUrls is a list because fromJson reads the first.
+    return {
+      'id': id,
+      'title': title,
+      'address': address,
+      'neighborhood': neighborhood,
+      'monthlyRent': monthlyRent,
+      'latitude': latitude,
+      'longitude': longitude,
+      'bedrooms': bedrooms,
+      'bathrooms': bathrooms,
+      'imageUrls': [imageUrl],
+      'averageRating': averageRating,
+      'description': description,
+    };
+  }
+
   factory Property.fromJson(Map<String, dynamic> json) {
     // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
     String firstImage =
