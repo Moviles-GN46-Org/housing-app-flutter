@@ -30,8 +30,7 @@ void main() async {
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
   final notificationRepository = NotificationRepository(apiClient);
-  
-  
+
   final analyticsService = AnalyticsService(apiClient);
 
   FlutterError.onError = (details) {
@@ -87,7 +86,9 @@ void main() async {
             return previous;
           },
         ),
-        ChangeNotifierProvider(create: (_) => MapViewModel(propertyRepository,analyticsService,)),
+        ChangeNotifierProvider(
+          create: (_) => MapViewModel(propertyRepository, analyticsService),
+        ),
       ],
       child: const UniHousingApp(),
     ),
@@ -167,7 +168,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _wasAuthenticated = false;
     }
 
-    if (authVM.isLoading) {
+    if (authVM.isCheckingStatus) {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(

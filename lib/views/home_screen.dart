@@ -246,6 +246,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           const WidgetStatePropertyAll<Color?>(
                                             AppColors.white,
                                           ),
+                                      onSubmitted: (value) {
+                                        context
+                                            .read<HomeViewModel>()
+                                            .setSearchQuery(value);
+                                        controller.closeView(value);
+                                      },
+                                      trailing: homeVM.searchQuery.isNotEmpty
+                                          ? [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  LucideIcons.x,
+                                                  size: 18,
+                                                  color: AppColors.dustyTaupe,
+                                                ),
+                                                onPressed: () {
+                                                  context
+                                                      .read<HomeViewModel>()
+                                                      .setSearchQuery('');
+                                                  controller.clear();
+                                                },
+                                              ),
+                                            ]
+                                          : null,
                                     ),
                                   );
                                 },
@@ -254,15 +277,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   BuildContext context,
                                   SearchController controller,
                                 ) {
-                                  return <Widget>[
-                                    ListTile(title: Text('Teusaquillo')),
-                                    ListTile(title: Text('Chapinero')),
-                                    ListTile(title: Text('Kitchen')),
-                                    ListTile(title: Text('Shared')),
-                                    ListTile(title: Text('Suba')),
-                                    ListTile(title: Text('Furnished')),
-                                    ListTile(title: Text('Suite')),
-                                  ];
+                                  final vm = context.read<HomeViewModel>();
+                                  final query = controller.text
+                                      .trim()
+                                      .toLowerCase();
+                                  final neighborhoods =
+                                      vm.properties
+                                          .map((p) => p.neighborhood)
+                                          .toSet()
+                                          .where(
+                                            (n) =>
+                                                query.isEmpty ||
+                                                n.toLowerCase().contains(query),
+                                          )
+                                          .toList()
+                                        ..sort();
+                                  return neighborhoods
+                                      .map(
+                                        (n) => ListTile(
+                                          title: Text(
+                                            n,
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  AppTextStyles.fontFamily,
+                                            ),
+                                          ),
+                                          onTap: () {
+                                            vm.setSearchQuery(n);
+                                            controller.closeView(n);
+                                          },
+                                        ),
+                                      )
+                                      .toList();
                                 },
                           ),
                         ),
@@ -299,41 +345,124 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                         ),
                       )
-                    : SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: <Widget>[
-                            ...homeVM.properties.indexed.map(
-                              ((int, Property) entry) => PropertyCard(
-                                property: entry.$2,
-                                index: entry.$1,
-                                isFavorite: homeVM.isFavorite(entry.$2.id),
-                                isFavoriteLoading: homeVM
-                                    .isFavoriteActionInFlight(entry.$2.id),
-                                onFavoriteTap: () async {
-                                  final success = await homeVM.toggleFavorite(
-                                    entry.$2.id,
-                                  );
-                                  if (!success && context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                      ..hideCurrentSnackBar()
-                                      ..showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Unable to update favorite right now',
+                    : Column(
+                        children: [
+                          if (homeVM.isFromCache)
+                            _OfflineCacheBanner(cachedAt: homeVM.cachedAt),
+                          if (homeVM.filteredProperties.isEmpty)
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  'No listings match "${homeVM.searchQuery}"',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 16,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Expanded(
+                              child: ListView.builder(
+                                controller: _listScrollController,
+                                padding: const EdgeInsets.only(bottom: 110),
+                                // +1 row for the footer (loader or end-of-list spacer).
+                                itemCount: homeVM.filteredProperties.length + 1,
+                                itemBuilder: (context, index) {
+                                  if (index ==
+                                      homeVM.filteredProperties.length) {
+                                    if (homeVM.isLoadingMore) {
+                                      return const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            color: AppColors.lightBronze,
                                           ),
                                         ),
                                       );
+                                    }
+                                    return const SizedBox.shrink();
                                   }
+                                  final property =
+                                      homeVM.filteredProperties[index];
+                                  return PropertyCard(
+                                    property: property,
+                                    index: index,
+                                    isFavorite: homeVM.isFavorite(property.id),
+                                    isFavoriteLoading: homeVM
+                                        .isFavoriteActionInFlight(property.id),
+                                    onFavoriteTap: () async {
+                                      final success = await homeVM
+                                          .toggleFavorite(property.id);
+                                      if (!success && context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Unable to update favorite right now',
+                                              ),
+                                            ),
+                                          );
+                                      }
+                                    },
+                                  );
                                 },
                               ),
                             ),
-                            const SizedBox(height: 110),
-                          ],
-                        ),
+                        ],
                       ),
               ),
             ),
+    );
+  }
+}
+
+class _OfflineCacheBanner extends StatelessWidget {
+  const _OfflineCacheBanner({required this.cachedAt});
+
+  final DateTime? cachedAt;
+
+  String _agoLabel(DateTime at) {
+    final diff = DateTime.now().difference(at);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} h ago';
+    return '${diff.inDays} d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = cachedAt == null
+        ? 'Showing offline listings'
+        : 'Showing offline listings · last updated ${_agoLabel(cachedAt!)}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: const Color(0xFFFBF3EB),
+      child: Row(
+        children: [
+          const Icon(
+            LucideIcons.wifi_off,
+            size: 14,
+            color: AppColors.dustyTaupe,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                fontSize: 12,
+                color: AppColors.dustyTaupe,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

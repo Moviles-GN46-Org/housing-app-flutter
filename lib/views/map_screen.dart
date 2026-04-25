@@ -32,9 +32,9 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  void _crashApp() {
-    throw StateError('Intentional crash from Map Search for demo');
-  }
+  // void _crashApp() {
+  //   throw StateError('Intentional crash from Map Search for demo');
+  // }
 
   String _formatPriceMillions(double rentInPesos) {
     final millions = rentInPesos / 1000000;
@@ -190,16 +190,16 @@ class _MapScreenState extends State<MapScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Positioned(
-              right: 0,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Crash app (demo)',
-                onPressed: _crashApp,
-                icon: const Icon(LucideIcons.bug, color: Colors.white),
-              ),
-            ),
+            // Positioned(
+            //   right: 0,
+            //   child: IconButton(
+            //     padding: EdgeInsets.zero,
+            //     constraints: const BoxConstraints(),
+            //     tooltip: 'Crash app (demo)',
+            //     onPressed: _crashApp,
+            //     icon: const Icon(LucideIcons.bug, color: Colors.white),
+            //   ),
+            // ),
           ],
         ),
       ),
