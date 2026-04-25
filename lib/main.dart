@@ -148,6 +148,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final analytics = context.read<AnalyticsService>();
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      // Drop any in-flight feature-load timer. A backgrounded user isn't
+      // actually waiting for the screen to load — resuming would report a
+      // bogus multi-minute duration.
+      analytics.discardPendingLoad();
       analytics.endSession();
     } else if (state == AppLifecycleState.resumed) {
       analytics.startSession();

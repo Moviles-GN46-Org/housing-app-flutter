@@ -13,9 +13,17 @@ import '../viewmodels/main_page_viewmodel.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 class _ScreenTracker extends StatefulWidget {
-  const _ScreenTracker({required this.screenName, required this.child});
+  const _ScreenTracker({
+    required this.screenName,
+    required this.child,
+    this.autoEndLoadTimeOnFirstFrame = false,
+  });
   final String screenName;
   final Widget child;
+  // When true, the tracker fires markFeatureLoadEnd after the first frame.
+  // Use this for placeholder screens with no async work. Data-backed screens
+  // (Home, Map) call markFeatureLoadEnd themselves when their data lands.
+  final bool autoEndLoadTimeOnFirstFrame;
 
   @override
   State<_ScreenTracker> createState() => _ScreenTrackerState();
@@ -25,7 +33,13 @@ class _ScreenTrackerState extends State<_ScreenTracker> {
   @override
   void initState() {
     super.initState();
-    context.read<AnalyticsService>().currentScreen = widget.screenName;
+    final analytics = context.read<AnalyticsService>();
+    analytics.currentScreen = widget.screenName;
+    if (widget.autoEndLoadTimeOnFirstFrame) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        analytics.markFeatureLoadEnd(widget.screenName);
+      });
+    }
   }
 
   @override
@@ -66,6 +80,11 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _changePage(int value) {
+    // Start the feature-load timer BEFORE setState so we capture the full
+    // rebuild + data-fetch latency, not just what happens after the frame.
+    context
+        .read<AnalyticsService>()
+        .markFeatureLoadStart(_screenNamesByIndex[value]);
     setState(() {
       currentPage = value;
     });
@@ -180,6 +199,17 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
+  // Keep in sync with the `pages` list below — `_changePage` uses this to
+  // name the feature whose load timer should start.
+  static const List<String> _screenNamesByIndex = [
+    ScreenName.home,
+    ScreenName.mapSearch,
+    ScreenName.chatScreen,
+    ScreenName.feed,
+    ScreenName.roomies,
+    ScreenName.profileEdit,
+  ];
+
   List<Widget> get pages => [
     _ScreenTracker(
       screenName: ScreenName.home,
@@ -191,18 +221,22 @@ class _MainPageState extends State<MainPage> {
     ),
     const _ScreenTracker(
       screenName: ScreenName.chatScreen,
+      autoEndLoadTimeOnFirstFrame: true,
       child: ChatsScreen(),
     ),
     const _ScreenTracker(
       screenName: ScreenName.feed,
+      autoEndLoadTimeOnFirstFrame: true,
       child: FeedScreen(),
     ),
     const _ScreenTracker(
       screenName: ScreenName.roomies,
+      autoEndLoadTimeOnFirstFrame: true,
       child: RoomiesScreen(),
     ),
     const _ScreenTracker(
       screenName: ScreenName.profileEdit,
+      autoEndLoadTimeOnFirstFrame: true,
       child: ProfileScreen(),
     ),
   ];

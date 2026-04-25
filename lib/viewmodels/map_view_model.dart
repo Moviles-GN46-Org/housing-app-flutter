@@ -3,10 +3,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/property_model.dart';
 import '../repositories/property_repository.dart';
-import '../services/analytics_service.dart'; 
+import '../services/analytics_service.dart';
+
 class MapViewModel extends ChangeNotifier {
   final PropertyRepository _propertyRepository;
-  final AnalyticsService _analyticsService; 
+  final AnalyticsService _analyticsService;
 
   MapViewModel(this._propertyRepository, this._analyticsService);
 
@@ -20,7 +21,6 @@ class MapViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-
   String get averageRentFormatted {
     if (_filteredProperties.isEmpty) return "No hay ofertas cerca";
     double total = _filteredProperties.fold(
@@ -30,7 +30,6 @@ class MapViewModel extends ChangeNotifier {
     double avg = total / _filteredProperties.length;
     return "\$${(avg / 1000000).toStringAsFixed(2)}M COP";
   }
-
 
   double get supplyDensity {
     if (_allProperties.isEmpty) return 0.0;
@@ -46,20 +45,18 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-
       Position position = await _determinePosition();
       _userLocation = LatLng(position.latitude, position.longitude);
 
-
-      await _analyticsService.logLocationBQ(position.latitude, position.longitude);
-
+      await _analyticsService.logLocationBQ(
+        position.latitude,
+        position.longitude,
+      );
 
       _allProperties = await _propertyRepository.getProperties();
       _filterPropertiesByDistance();
-      
 
       await _logSupplyDensityAnalytics();
-
     } catch (e) {
       debugPrint("Error initializing map: $e");
     } finally {
@@ -72,14 +69,14 @@ class MapViewModel extends ChangeNotifier {
     if (_userLocation == null) return;
 
     final Distance distance = const Distance();
-    
+
     _filteredProperties = _allProperties.where((p) {
       double km = distance.as(
         LengthUnit.Kilometer,
         _userLocation!,
         LatLng(p.latitude, p.longitude),
       );
-      return km <= 1.0; 
+      return km <= 25.0;
     }).toList();
   }
 
@@ -88,7 +85,7 @@ class MapViewModel extends ChangeNotifier {
       "value": supplyDensity,
       "nearby_count": _filteredProperties.length,
       "total_count": _allProperties.length,
-      "coords": "${_userLocation?.latitude},${_userLocation?.longitude}"
+      "coords": "${_userLocation?.latitude},${_userLocation?.longitude}",
     });
     debugPrint("Analítica de densidad procesada vía Outbox.");
   }

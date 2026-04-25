@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
+import '../services/analytics_service.dart';
 import '../viewmodels/home_viewmodel.dart';
 
 // Main (home) screen with a regular feed of housing listings
@@ -30,8 +31,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _homeVM = context.read<HomeViewModel>();
     WidgetsBinding.instance.addObserver(this);
     _listScrollController.addListener(_onListScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _homeVM.fetchProperties();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final analytics = context.read<AnalyticsService>();
+      // fetchProperties resolves as soon as the network (or cache) call is
+      // done — that's our definition of "Home is loaded" for this metric.
+      await _homeVM.fetchProperties();
+      await analytics.markFeatureLoadEnd(ScreenName.home);
       _homeVM.fetchNotifications();
       _homeVM.startNotificationsPolling();
     });
