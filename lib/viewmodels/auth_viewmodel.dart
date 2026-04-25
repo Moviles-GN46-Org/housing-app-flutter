@@ -16,10 +16,15 @@ class AuthViewModel extends ChangeNotifier {
 
   User? _currentUser;
   bool _isLoading = false;
+  bool _isCheckingStatus = false;
   String? _error;
 
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
+
+  /// True only while [checkAuthStatus] is running (the initial startup check).
+  /// Use this in the auth gate so the login screen stays mounted during login.
+  bool get isCheckingStatus => _isCheckingStatus;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
 
@@ -90,6 +95,7 @@ class AuthViewModel extends ChangeNotifier {
       return;
     }
 
+    _isCheckingStatus = true;
     _setLoading(true);
 
     try {
@@ -101,8 +107,7 @@ class AuthViewModel extends ChangeNotifier {
         // Offline with a still-valid token: trust what we have on disk.
         // The cached user gives us names/email; the JWT claims are the
         // fallback for a first-offline-open with no cache yet.
-        _currentUser =
-            await _userCache.read() ?? await _userFromTokenClaims();
+        _currentUser = await _userCache.read() ?? await _userFromTokenClaims();
       } else {
         // A real auth failure (401, 403, etc.) — cached session is invalid.
         await StorageService.clearTokens();
@@ -112,6 +117,7 @@ class AuthViewModel extends ChangeNotifier {
       await StorageService.clearTokens();
       await _userCache.clear();
     } finally {
+      _isCheckingStatus = false;
       _setLoading(false);
     }
   }
@@ -199,11 +205,18 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   String _parseError(Exception e) {
-    final message = e.toString();
-    if (message.contains('401')) return 'Invalid email or password.';
-    if (message.contains('409'))
-      return 'An account with this email already exists.';
-    if (message.contains('SocketException')) return 'No internet connection.';
+    if (e is DioException) {
+      if (_isOfflineError(e)) return 'No internet connection.';
+      final status = e.response?.statusCode;
+      if (status == 401) return 'Invalid email or password.';
+      if (status == 409) return 'An account with this email already exists.';
+      if (status == 422 || status == 400) {
+        final body = e.response?.data;
+        if (body is Map && body['message'] != null) {
+          return body['message'].toString();
+        }
+      }
+    }
     return 'Something went wrong. Please try again.';
   }
 }
