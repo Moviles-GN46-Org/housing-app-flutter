@@ -1,6 +1,22 @@
 import '../models/property_model.dart';
 import '../services/api_client.dart';
 
+class PropertyPage {
+  final List<Property> items;
+  final int total;
+  final int page;
+  final int limit;
+
+  const PropertyPage({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.limit,
+  });
+
+  bool get hasMore => page * limit < total;
+}
+
 class PropertyRepository {
   final ApiClient _api;
 
@@ -31,6 +47,35 @@ class PropertyRepository {
     }
 
     return [];
+  }
+
+  Future<PropertyPage> getPropertiesPage({
+    required int page,
+    required int limit,
+  }) async {
+    final response = await _api.get(
+      '/properties',
+      queryParams: {'page': page, 'limit': limit},
+    );
+
+    if (response.statusCode != 200 || response.data['success'] != true) {
+      return PropertyPage(items: const [], total: 0, page: page, limit: limit);
+    }
+
+    final data = response.data['data'];
+    final rawList = (data is Map && data['properties'] is List)
+        ? data['properties'] as List
+        : const [];
+    final items = rawList
+        .map((item) => Property.fromJson(item as Map<String, dynamic>))
+        .toList();
+
+    return PropertyPage(
+      items: items,
+      total: (data is Map && data['total'] is int) ? data['total'] as int : items.length,
+      page: (data is Map && data['page'] is int) ? data['page'] as int : page,
+      limit: (data is Map && data['limit'] is int) ? data['limit'] as int : limit,
+    );
   }
 
   Future<Set<String>> getFavoritePropertyIds() async {

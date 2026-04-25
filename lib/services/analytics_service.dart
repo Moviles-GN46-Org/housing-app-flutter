@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:connectivity_plus/connectivity_plus.dart'; 
 import 'api_client.dart';
+import '../models/local_event.dart'; 
+import 'local_db_service.dart';     
 
 class ScreenName {
   static const String home = 'Home';
@@ -13,6 +16,7 @@ class ScreenName {
 
 class AnalyticsService {
   final ApiClient _apiClient;
+  final LocalDbService _localDb = LocalDbService(); 
   String? _sessionId;
   String? currentScreen;
 
@@ -20,13 +24,22 @@ class AnalyticsService {
 
   Future<void> startSession() async {
     _sessionId = const Uuid().v4();
-    await _postEvent('SESSION_START');
+    await logGenericEvent('SESSION_START', {});
   }
 
   Future<void> endSession() async {
     if (_sessionId == null) return;
-    await _postEvent('SESSION_END');
+    await logGenericEvent('SESSION_END', {});
     _sessionId = null;
+  }
+
+  Future<void> logLocationBQ(double lat, double lng) async {
+    if (_sessionId == null) await startSession();
+
+    await logGenericEvent('LOCATION_STATS_UPDATE', {
+      'lat': lat,
+      'lng': lng,
+    });
   }
 
   Future<void> logCrash({
@@ -34,34 +47,68 @@ class AnalyticsService {
     required Object error,
     StackTrace? stackTrace,
   }) async {
-    if (_sessionId == null) return;
-    try {
-      await _apiClient.post(
-        '/analytics/events',
-        data: {
-          'sessionId': _sessionId,
-          'eventType': 'CRASH',
-          'screenName': screenName,
-          'payload': {
-            'screen': screenName,
-            'errorMessage': error.toString(),
-            'stackTrace': stackTrace?.toString() ?? '',
-          },
-        },
-      );
-    } catch (e) {
-      debugPrint('Failed to report crash: $e');
-    }
+    await logGenericEvent('CRASH', {
+      'screen': screenName,
+      'errorMessage': error.toString(),
+      'stackTrace': stackTrace?.toString() ?? '',
+    }, forcedScreen: screenName);
   }
 
-  Future<void> _postEvent(String eventType) async {
+
+  Future<void> logGenericEvent(String eventType, Map<String, dynamic> payload, {String? forcedScreen}) async {
+    if (_sessionId == null) return;
+
+    final event = LocalEvent(
+      id: const Uuid().v4(),
+      lat: payload['lat']?.toDouble() ?? 0.0,
+      lng: payload['lng']?.toDouble() ?? 0.0,
+      timestamp: DateTime.now(),
+    );
+
+    await _localDb.saveLocationEvent(event);
+
+    await syncAllPendingEvents();
+  }
+
+  Future<void> syncAllPendingEvents() async {
     try {
-      await _apiClient.post(
-        '/analytics/events',
-        data: {'sessionId': _sessionId, 'eventType': eventType, 'payload': {}},
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity == ConnectivityResult.none) {
+        debugPrint(' Sin conexión a internet. Los eventos permanecerán en local.');
+        return;
+      }
+
+      final pendingEvents = _localDb.getUnsyncedEvents();
+      if (pendingEvents.isEmpty) return;
+
+      debugPrint('Sincronizando ${pendingEvents.length} eventos pendientes...');
+
+      final eventsData = pendingEvents.map((e) => {
+        'sessionId': _sessionId ?? 'unknown_session',
+        'eventType': e.lat != 0.0 ? 'LOCATION_STATS_UPDATE' : 'SESSION_EVENT', 
+        'screenName': currentScreen ?? 'Unknown',
+        'payload': {
+          'lat': e.lat,
+          'lng': e.lng,
+          'timestamp': e.timestamp.toIso8601String(),
+        },
+      }).toList();
+
+      final response = await _apiClient.post(
+        '/analytics/batch',
+        data: {'events': eventsData},
       );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        for (var e in pendingEvents) {
+          await _localDb.markAsSynced(e.id);
+        }
+        debugPrint('Sincronización masiva completada con éxito.');
+        
+        await _localDb.clearSyncedEvents();
+      }
     } catch (e) {
-      debugPrint('Failed to post session event $eventType: $e');
+      debugPrint('Falló la sincronización masiva: $e. Los datos siguen seguros en local.');
     }
   }
 }

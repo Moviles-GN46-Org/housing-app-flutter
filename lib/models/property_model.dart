@@ -31,6 +31,24 @@ class Property {
       'https://static.vecteezy.com/system/resources/previews/056/506/951/non_2x/this-is-a-simple-illustration-of-a-house-vector.jpg';
 
   bool get hasImage => imageUrl != _noImagePlaceholder;
+  Map<String, dynamic> toJson() {
+    // Mirrors the backend shape so cached blobs round-trip cleanly through
+    // Property.fromJson. imageUrls is a list because fromJson reads the first.
+    return {
+      'id': id,
+      'title': title,
+      'address': address,
+      'neighborhood': neighborhood,
+      'monthlyRent': monthlyRent,
+      'latitude': latitude,
+      'longitude': longitude,
+      'bedrooms': bedrooms,
+      'bathrooms': bathrooms,
+      'imageUrls': [imageUrl],
+      'averageRating': averageRating,
+      'description': description,
+    };
+  }
 
   factory Property.fromJson(Map<String, dynamic> json) {
     // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
