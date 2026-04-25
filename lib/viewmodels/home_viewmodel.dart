@@ -33,6 +33,7 @@ class HomeViewModel extends ChangeNotifier {
   int _currentPage = 0;
   DateTime? _cachedAt;
   String? _error;
+  String _searchQuery = '';
   Timer? _notificationsPollingTimer;
 
   List<Property> get properties {
@@ -59,6 +60,17 @@ class HomeViewModel extends ChangeNotifier {
   DateTime? get cachedAt => _cachedAt;
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
+  String get searchQuery => _searchQuery;
+
+  List<Property> get filteredProperties {
+    if (_searchQuery.isEmpty) return properties;
+    return properties.where((p) {
+      return p.title.toLowerCase().contains(_searchQuery) ||
+          p.address.toLowerCase().contains(_searchQuery) ||
+          p.neighborhood.toLowerCase().contains(_searchQuery) ||
+          (p.description?.toLowerCase().contains(_searchQuery) ?? false);
+    }).toList();
+  }
 
   Future<Property?> fetchPropertyById(String id) =>
       _repository.getPropertyById(id);
@@ -67,6 +79,11 @@ class HomeViewModel extends ChangeNotifier {
       _favoritePropertyIds.contains(propertyId);
   bool isFavoriteActionInFlight(String propertyId) =>
       _favoriteActionInFlight.contains(propertyId);
+
+  void setSearchQuery(String query) {
+    _searchQuery = query.trim().toLowerCase();
+    notifyListeners();
+  }
 
   // Cache-then-network: paint cached properties instantly, then replace them
   // with fresh data if the network call succeeds. If we're offline, whatever

@@ -6,19 +6,17 @@ import 'package:dio/dio.dart';
 import 'storage_service.dart';
 
 class ApiClient {
-  // TODO: CHANGE BASED ON WHAT YOU'RE USING (EMULATOR, SIMULATOR, OR WEB)
-
-  // Android emulator
-  //static const String _baseUrl =
-  //    'http://10.0.2.2:3000/api';
-
-  // iOS simulator and web
-  // static const String _baseUrl =
-  //     'http://localhost:3000/api';
-
-  // Ngrok URL
-  static const String _baseUrl =
-      'http://localhost:3000/api';
+  // Select the correct base URL for your environment:
+  //   Android emulator  → http://10.0.2.2:3000/api
+  //   iOS simulator/web → http://localhost:3000/api
+  //   Physical device   → your ngrok/LAN URL, e.g. https://xxxx.ngrok-free.app/api
+  //
+  // You can also override at build time with:
+  //   flutter run --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:3000/api',
+  );
 
   final Dio _dio;
 
@@ -31,9 +29,7 @@ class ApiClient {
           headers: {'Content-Type': 'application/json'},
         ),
       ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(onRequest: _checkConnectivity),
-    );
+    _dio.interceptors.add(InterceptorsWrapper(onRequest: _checkConnectivity));
     _dio.interceptors.add(
       InterceptorsWrapper(onRequest: _attachToken, onError: _handleError),
     );
@@ -45,8 +41,7 @@ class ApiClient {
   ) async {
     final results = await Connectivity().checkConnectivity();
     final offline =
-        results.isEmpty ||
-        results.every((r) => r == ConnectivityResult.none);
+        results.isEmpty || results.every((r) => r == ConnectivityResult.none);
 
     if (offline) {
       return handler.reject(
