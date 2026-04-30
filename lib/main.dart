@@ -57,8 +57,11 @@ void main() async {
         Provider<AnalyticsService>.value(value: analyticsService),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
         ChangeNotifierProvider(
-          create: (_) =>
-              HomeViewModel(propertyRepository, notificationRepository),
+          create: (_) => HomeViewModel(
+            propertyRepository,
+            notificationRepository,
+            analyticsService: analyticsService,
+          ),
         ),
         ChangeNotifierProxyProvider<HomeViewModel, MainPageViewModel>(
           create: (context) => MainPageViewModel(

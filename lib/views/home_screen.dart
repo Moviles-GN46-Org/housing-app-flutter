@@ -342,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const DropdownButtonBudget(),
                               const DropdownButtonAmenities(),
                               const DropdownButtonLocation(),
-                              const DropdownButtonRoomType(),
+                              const DropdownButtonUtilities(),
                             ],
                           ),
                         ),
@@ -369,7 +369,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Expanded(
                               child: Center(
                                 child: Text(
-                                  'No listings match "${homeVM.searchQuery}"',
+                                  homeVM.searchQuery.isNotEmpty
+                                      ? 'No listings match "${homeVM.searchQuery}"'
+                                      : 'No listings match the active filters',
                                   style: const TextStyle(
                                     fontFamily: AppTextStyles.fontFamily,
                                     fontSize: 16,
@@ -383,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               child: ListView.builder(
                                 controller: _listScrollController,
                                 padding: const EdgeInsets.only(bottom: 110),
-                                // +1 row for the footer (loader or end-of-list spacer).
+
                                 itemCount: homeVM.filteredProperties.length + 1,
                                 itemBuilder: (context, index) {
                                   if (index ==
@@ -492,18 +494,20 @@ class _InAppScannerView extends StatefulWidget {
 
 class _InAppScannerViewState extends State<_InAppScannerView> {
   late final MobileScannerController _controller;
+  late final MainPageViewModel _mainPageVM;
   bool _handledDetection = false;
 
   @override
   void initState() {
     super.initState();
     _controller = MobileScannerController();
-    context.read<MainPageViewModel>().setCameraScannerActive(true);
+    _mainPageVM = context.read<MainPageViewModel>();
+    _mainPageVM.setCameraScannerActive(true);
   }
 
   @override
   void dispose() {
-    context.read<MainPageViewModel>().setCameraScannerActive(false);
+    _mainPageVM.setCameraScannerActive(false);
     _controller.dispose();
     super.dispose();
   }
@@ -1025,19 +1029,16 @@ const List<String> budgetList = <String>[
   'Above \$1.2M',
 ];
 
-class DropdownButtonBudget extends StatefulWidget {
+class DropdownButtonBudget extends StatelessWidget {
   const DropdownButtonBudget({super.key});
 
   @override
-  State<DropdownButtonBudget> createState() => _DropdownButtonBudgetState();
-}
-
-class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.budgetFilter.isEmpty
+        ? null
+        : homeVM.budgetFilter;
+    final bool hasSelection = homeVM.budgetFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1083,9 +1084,7 @@ class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setBudgetFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...budgetList].map<Widget>((String value) {
@@ -1259,29 +1258,136 @@ class _DropdownButtonRoomTypeState extends State<DropdownButtonRoomType> {
   }
 }
 
+// Dropdown list for utilities filter
+
+const List<String> utilitiesList = <String>['Included', 'Separate'];
+
+class DropdownButtonUtilities extends StatelessWidget {
+  const DropdownButtonUtilities({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.utilitiesFilter.isEmpty
+        ? null
+        : homeVM.utilitiesFilter;
+    final bool hasSelection = homeVM.utilitiesFilter.isNotEmpty;
+
+    return IntrinsicWidth(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          color: hasSelection ? AppColors.lightBronze : AppColors.white,
+          borderRadius: BorderRadius.circular(25.0),
+          boxShadow: AppShadows.small,
+        ),
+        child: DropdownButton<String>(
+          value: dropdownValue,
+          hint: const Text(
+            'Utilities',
+            style: TextStyle(
+              color: AppColors.dustyTaupe,
+              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontFamily: AppTextStyles.fontFamily,
+            ),
+          ),
+          icon: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Icon(
+              LucideIcons.chevron_down,
+              color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+            ),
+          ),
+          elevation: 1,
+          isDense: true,
+          style: TextStyle(
+            color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+            fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 16,
+            fontFamily: AppTextStyles.fontFamily,
+          ),
+          dropdownColor: AppColors.white,
+          borderRadius: BorderRadius.circular(10.0),
+          enableFeedback: true,
+          focusColor: AppColors.linen,
+          iconEnabledColor: hasSelection
+              ? AppColors.white
+              : AppColors.dustyTaupe,
+          iconSize: 20.0,
+          underline: const SizedBox(),
+          onChanged: (String? value) {
+            context.read<HomeViewModel>().setUtilitiesFilter(value ?? '');
+          },
+          selectedItemBuilder: (BuildContext context) {
+            return <String>['', ...utilitiesList].map<Widget>((String value) {
+              if (value == '') {
+                return const Text('Utilities');
+              }
+              return Text(
+                value,
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 16,
+                  fontFamily: AppTextStyles.fontFamily,
+                ),
+              );
+            }).toList();
+          },
+          items: <DropdownMenuItem<String>>[
+            const DropdownMenuItem<String>(
+              value: '',
+              child: Text(
+                'Any',
+                style: TextStyle(
+                  color: AppColors.dustyTaupe,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontFamily: AppTextStyles.fontFamily,
+                ),
+              ),
+            ),
+            ...utilitiesList.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: AppColors.dustyTaupe,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontFamily: AppTextStyles.fontFamily,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // Dropdown list for amenities filter
 
 const List<String> amenitiesList = <String>[
   'Wi-Fi',
-  'Furnished',
-  'Kitchen',
+  'Parking',
   'Laundry',
+  'Furnished',
 ];
 
-class DropdownButtonAmenities extends StatefulWidget {
+class DropdownButtonAmenities extends StatelessWidget {
   const DropdownButtonAmenities({super.key});
 
   @override
-  State<DropdownButtonAmenities> createState() =>
-      _DropdownButtonAmenitiesState();
-}
-
-class _DropdownButtonAmenitiesState extends State<DropdownButtonAmenities> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.amenitiesFilter.isEmpty
+        ? null
+        : homeVM.amenitiesFilter;
+    final bool hasSelection = homeVM.amenitiesFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1327,9 +1433,7 @@ class _DropdownButtonAmenitiesState extends State<DropdownButtonAmenities> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setAmenitiesFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...amenitiesList].map<Widget>((String value) {
@@ -1392,19 +1496,16 @@ const List<String> locationList = <String>[
   'Engativá',
 ];
 
-class DropdownButtonLocation extends StatefulWidget {
+class DropdownButtonLocation extends StatelessWidget {
   const DropdownButtonLocation({super.key});
 
   @override
-  State<DropdownButtonLocation> createState() => _DropdownButtonLocationState();
-}
-
-class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.locationFilter.isEmpty
+        ? null
+        : homeVM.locationFilter;
+    final bool hasSelection = homeVM.locationFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1450,9 +1551,7 @@ class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setLocationFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...locationList].map<Widget>((String value) {

@@ -11,6 +11,11 @@ class Property {
   final String imageUrl;
   final double? averageRating;
   final String? description;
+  final bool includesUtilities;
+  final bool hasWifi;
+  final bool hasParking;
+  final bool hasLaundry;
+  final bool furnished;
 
   Property({
     required this.id,
@@ -25,6 +30,11 @@ class Property {
     required this.imageUrl,
     this.averageRating,
     this.description,
+    this.includesUtilities = false,
+    this.hasWifi = false,
+    this.hasParking = false,
+    this.hasLaundry = false,
+    this.furnished = false,
   });
 
   static const String _noImagePlaceholder =
@@ -47,6 +57,11 @@ class Property {
       'imageUrls': [imageUrl],
       'averageRating': averageRating,
       'description': description,
+      'includesUtilities': includesUtilities,
+      'hasWifi': hasWifi,
+      'hasParking': hasParking,
+      'hasLaundry': hasLaundry,
+      'furnished': furnished,
     };
   }
 
@@ -73,6 +88,11 @@ class Property {
           ? double.tryParse(json['averageRating'].toString())
           : null,
       description: json['description']?.toString(),
+      includesUtilities: json['includesUtilities'] as bool? ?? false,
+      hasWifi: json['hasWifi'] as bool? ?? false,
+      hasParking: json['hasParking'] as bool? ?? false,
+      hasLaundry: json['hasLaundry'] as bool? ?? false,
+      furnished: json['furnished'] as bool? ?? false,
     );
   }
 }
