@@ -7,7 +7,11 @@ import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/main_page_viewmodel.dart';
+<<<<<<< HEAD
 import 'package:flutter_lucide/flutter_lucide.dart';
+=======
+import 'property_detail_screen.dart';
+>>>>>>> f7329bf (feat: enhance property model and add property detail screen with image carousel and amenities display)
 
 // Main (home) screen with a regular feed of housing listings
 
@@ -1607,6 +1611,7 @@ class PropertyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     return Container(
       margin: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
       decoration: BoxDecoration(
@@ -1631,194 +1636,229 @@ class PropertyCard extends StatelessWidget {
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
+=======
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PropertyDetailScreen(property: property),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(24.0),
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24.0),
+                    topRight: Radius.circular(24.0),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: property.imageUrl,
+>>>>>>> f7329bf (feat: enhance property model and add property detail screen with image carousel and amenities display)
                     height: 164,
                     width: double.infinity,
-                    color: const Color(0xFFD9CEC8),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: isFavoriteLoading ? null : onFavoriteTap,
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: isFavorite
-                            ? AppColors.lightBronze
-                            : const Color(0xB3FFFFFF),
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.small,
-                      ),
-                      child: Center(
-                        child: isFavoriteLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: AppColors.lightBronze,
-                                ),
-                              )
-                            : Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFavorite
-                                    ? AppColors.white
-                                    : AppColors.lightBronze,
-                                size: 28,
-                              ),
-                      ),
+                    fit: BoxFit.cover,
+                    errorWidget: (_, _, _) => Container(
+                      height: 164,
+                      width: double.infinity,
+                      color: const Color(0xFFD9CEC8),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        property.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: AppTextStyles.fontFamily,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.deepMocha,
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.star,
-                          color: AppColors.lightBronze,
-                          size: 16,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          property.averageRating != null
-                              ? property.averageRating!.toStringAsFixed(1)
-                              : '-',
-                          style: TextStyle(
-                            fontFamily: AppTextStyles.fontFamily,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.lightBronze,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.map_pin,
-                                color: AppColors.dustyTaupe,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                property.neighborhood.isNotEmpty
-                                    ? property.neighborhood
-                                    : property.address,
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 14,
-                                  color: AppColors.dustyTaupe,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.bed_single,
-                                color: AppColors.dustyTaupe,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${property.bedrooms} Bed \u00b7 ${property.bathrooms} Bath',
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 14,
-                                  color: AppColors.dustyTaupe,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    IntrinsicWidth(
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isFavoriteLoading ? null : onFavoriteTap,
+                      customBorder: const CircleBorder(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
-                          color: AppColors.lightBronze,
-                          borderRadius: BorderRadius.circular(12),
+                          color: isFavorite
+                              ? AppColors.lightBronze
+                              : const Color(0xB3FFFFFF),
+                          shape: BoxShape.circle,
+                          boxShadow: AppShadows.small,
                         ),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text:
-                                    '\$${NumberFormat('#,###').format(property.monthlyRent.toInt())}',
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.white,
+                        child: Center(
+                          child: isFavoriteLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: AppColors.lightBronze,
+                                  ),
+                                )
+                              : Icon(
+                                  isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isFavorite
+                                      ? AppColors.white
+                                      : AppColors.lightBronze,
+                                  size: 28,
                                 ),
-                              ),
-                              const TextSpan(
-                                text: ' /mo',
-                                style: TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.white,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          property.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.deepMocha,
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.star,
+                            color: AppColors.lightBronze,
+                            size: 16,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            property.averageRating != null
+                                ? property.averageRating!.toStringAsFixed(1)
+                                : '-',
+                            style: TextStyle(
+                              fontFamily: AppTextStyles.fontFamily,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.lightBronze,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.map_pin,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  property.neighborhood.isNotEmpty
+                                      ? property.neighborhood
+                                      : property.address,
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 14,
+                                    color: AppColors.dustyTaupe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.bed_single,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${property.bedrooms} Bed \u00b7 ${property.bathrooms} Bath',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 14,
+                                    color: AppColors.dustyTaupe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IntrinsicWidth(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightBronze,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '\$${NumberFormat('#,###').format(property.monthlyRent.toInt())}',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' /mo',
+                                  style: TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
