@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import '../services/analytics_service.dart';
 import '../viewmodels/map_view_model.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
@@ -27,8 +28,10 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MapViewModel>().initializeMap();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final analytics = context.read<AnalyticsService>();
+      await context.read<MapViewModel>().initializeMap();
+      await analytics.markFeatureLoadEnd(ScreenName.mapSearch);
     });
   }
 
