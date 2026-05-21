@@ -8,9 +8,18 @@ class Property {
   final double longitude;
   final int bedrooms;
   final int bathrooms;
-  final String imageUrl;
+  final List<String> imageUrls;
   final double? averageRating;
   final String? description;
+  final bool includesUtilities;
+  final bool hasWifi;
+  final bool hasParking;
+  final bool hasLaundry;
+  final bool furnished;
+  final double? deposit;
+  final int? contractMonths;
+  final String? moveInDate;
+  final bool isVerified;
 
   Property({
     required this.id,
@@ -22,18 +31,30 @@ class Property {
     required this.longitude,
     required this.bedrooms,
     required this.bathrooms,
-    required this.imageUrl,
+    required this.imageUrls,
     this.averageRating,
     this.description,
+    this.includesUtilities = false,
+    this.hasWifi = false,
+    this.hasParking = false,
+    this.hasLaundry = false,
+    this.furnished = false,
+    this.deposit,
+    this.contractMonths,
+    this.moveInDate,
+    this.isVerified = false,
   });
 
   static const String _noImagePlaceholder =
       'https://static.vecteezy.com/system/resources/previews/056/506/951/non_2x/this-is-a-simple-illustration-of-a-house-vector.jpg';
 
-  bool get hasImage => imageUrl != _noImagePlaceholder;
+  String get imageUrl =>
+      imageUrls.isNotEmpty ? imageUrls[0] : _noImagePlaceholder;
+
+  bool get hasImage =>
+      imageUrls.isNotEmpty && imageUrls[0] != _noImagePlaceholder;
+
   Map<String, dynamic> toJson() {
-    // Mirrors the backend shape so cached blobs round-trip cleanly through
-    // Property.fromJson. imageUrls is a list because fromJson reads the first.
     return {
       'id': id,
       'title': title,
@@ -44,18 +65,28 @@ class Property {
       'longitude': longitude,
       'bedrooms': bedrooms,
       'bathrooms': bathrooms,
-      'imageUrls': [imageUrl],
+      'imageUrls': imageUrls,
       'averageRating': averageRating,
       'description': description,
+      'includesUtilities': includesUtilities,
+      'hasWifi': hasWifi,
+      'hasParking': hasParking,
+      'hasLaundry': hasLaundry,
+      'furnished': furnished,
+      'deposit': deposit,
+      'contractMonths': contractMonths,
+      'moveInDate': moveInDate,
+      'isVerified': isVerified,
     };
   }
 
   factory Property.fromJson(Map<String, dynamic> json) {
-    // Extraemos la primera imagen si existe, de lo contrario usamos un placeholder
-    String firstImage = Property._noImagePlaceholder;
-    if (json['imageUrls'] != null && (json['imageUrls'] as List).isNotEmpty) {
-      firstImage = json['imageUrls'][0];
-    }
+    final rawUrls = json['imageUrls'] as List? ?? [];
+    final List<String> imageUrls = rawUrls
+        .map((e) => e.toString())
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (imageUrls.isEmpty) imageUrls.add(Property._noImagePlaceholder);
 
     return Property(
       id: json['id']?.toString() ?? '',
@@ -68,11 +99,22 @@ class Property {
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
       bedrooms: json['bedrooms'] ?? 0,
       bathrooms: json['bathrooms'] ?? 0,
-      imageUrl: firstImage,
+      imageUrls: imageUrls,
       averageRating: json['averageRating'] != null
           ? double.tryParse(json['averageRating'].toString())
           : null,
       description: json['description']?.toString(),
+      includesUtilities: json['includesUtilities'] as bool? ?? false,
+      hasWifi: json['hasWifi'] as bool? ?? false,
+      hasParking: json['hasParking'] as bool? ?? false,
+      hasLaundry: json['hasLaundry'] as bool? ?? false,
+      furnished: json['furnished'] as bool? ?? false,
+      deposit: json['deposit'] != null
+          ? double.tryParse(json['deposit'].toString())
+          : null,
+      contractMonths: json['contractMonths'] as int?,
+      moveInDate: json['moveInDate']?.toString(),
+      isVerified: json['isVerified'] as bool? ?? false,
     );
   }
 }
