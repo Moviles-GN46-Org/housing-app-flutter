@@ -16,11 +16,53 @@ class ScreenName {
 
 class AnalyticsService {
   final ApiClient _apiClient;
-  final LocalDbService _localDb = LocalDbService(); 
+  final LocalDbService _localDb = LocalDbService();
   String? _sessionId;
   String? currentScreen;
 
+  Stopwatch? _loadStopwatch;
+  String? _pendingLoadScreen;
+
   AnalyticsService(this._apiClient);
+
+  void markFeatureLoadStart(String screenName) {
+    _pendingLoadScreen = screenName;
+    _loadStopwatch = Stopwatch()..start();
+  }
+
+  // Drops the in-flight timer without posting. Call this when the app is
+  // backgrounded — a paused user isn't "still loading."
+  void discardPendingLoad() {
+    _loadStopwatch = null;
+    _pendingLoadScreen = null;
+  }
+
+  Future<void> markFeatureLoadEnd(String screenName) async {
+    final sw = _loadStopwatch;
+    // Screen-name gate prevents a stale stopwatch from attributing to the
+    // wrong screen if the user switched tabs mid-load.
+    if (sw == null || _pendingLoadScreen != screenName || _sessionId == null) {
+      return;
+    }
+    sw.stop();
+    final elapsedMs = sw.elapsedMilliseconds;
+    _loadStopwatch = null;
+    _pendingLoadScreen = null;
+
+    try {
+      await _apiClient.post(
+        '/analytics/events',
+        data: {
+          'sessionId': _sessionId,
+          'eventType': 'FEATURE_LOAD_TIME',
+          'screenName': screenName,
+          'payload': {'screen': screenName, 'durationMs': elapsedMs},
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to report feature load time: $e');
+    }
+  }
 
   Future<void> startSession() async {
     _sessionId = const Uuid().v4();

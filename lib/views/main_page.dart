@@ -13,9 +13,14 @@ import '../viewmodels/main_page_viewmodel.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 class _ScreenTracker extends StatefulWidget {
-  const _ScreenTracker({required this.screenName, required this.child});
+  const _ScreenTracker({
+    required this.screenName,
+    required this.child,
+    this.autoEndLoadTimeOnFirstFrame = false,
+  });
   final String screenName;
   final Widget child;
+  final bool autoEndLoadTimeOnFirstFrame;
 
   @override
   State<_ScreenTracker> createState() => _ScreenTrackerState();
@@ -25,7 +30,13 @@ class _ScreenTrackerState extends State<_ScreenTracker> {
   @override
   void initState() {
     super.initState();
-    context.read<AnalyticsService>().currentScreen = widget.screenName;
+    final analytics = context.read<AnalyticsService>();
+    analytics.currentScreen = widget.screenName;
+    if (widget.autoEndLoadTimeOnFirstFrame) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        analytics.markFeatureLoadEnd(widget.screenName);
+      });
+    }
   }
 
   @override
@@ -65,7 +76,19 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
+  static const List<String> _screenNamesByIndex = [
+    ScreenName.home,
+    ScreenName.mapSearch,
+    ScreenName.chatScreen,
+    ScreenName.feed,
+    ScreenName.roomies,
+    ScreenName.profileEdit,
+  ];
+
   void _changePage(int value) {
+    context.read<AnalyticsService>().markFeatureLoadStart(
+      _screenNamesByIndex[value],
+    );
     setState(() {
       currentPage = value;
     });
@@ -191,15 +214,22 @@ class _MainPageState extends State<MainPage> {
     const _ScreenTracker(screenName: ScreenName.mapSearch, child: MapScreen()),
     const _ScreenTracker(
       screenName: ScreenName.chatScreen,
+      autoEndLoadTimeOnFirstFrame: true,
       child: ChatsScreen(),
     ),
-    const _ScreenTracker(screenName: ScreenName.feed, child: FeedScreen()),
+    const _ScreenTracker(
+      screenName: ScreenName.feed,
+      autoEndLoadTimeOnFirstFrame: true,
+      child: FeedScreen(),
+    ),
     const _ScreenTracker(
       screenName: ScreenName.roomies,
+      autoEndLoadTimeOnFirstFrame: true,
       child: RoomiesScreen(),
     ),
     const _ScreenTracker(
       screenName: ScreenName.profileEdit,
+      autoEndLoadTimeOnFirstFrame: true,
       child: ProfileScreen(),
     ),
   ];

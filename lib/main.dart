@@ -149,6 +149,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final analytics = context.read<AnalyticsService>();
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      analytics.discardPendingLoad();
       analytics.endSession();
     } else if (state == AppLifecycleState.resumed) {
       analytics.startSession();
