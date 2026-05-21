@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:connectivity_plus/connectivity_plus.dart'; 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'api_client.dart';
-import '../models/local_event.dart'; 
-import 'local_db_service.dart';     
+import '../models/local_event.dart';
+import 'local_db_service.dart';
 
 class ScreenName {
   static const String home = 'Home';
@@ -78,10 +78,20 @@ class AnalyticsService {
   Future<void> logLocationBQ(double lat, double lng) async {
     if (_sessionId == null) await startSession();
 
-    await logGenericEvent('LOCATION_STATS_UPDATE', {
-      'lat': lat,
-      'lng': lng,
-    });
+    await logGenericEvent('LOCATION_STATS_UPDATE', {'lat': lat, 'lng': lng});
+  }
+
+  Future<void> logSearchFilterUsages(List<Map<String, String>> filters) async {
+    if (filters.isEmpty) return;
+    if (_sessionId == null) await startSession();
+    try {
+      await _apiClient.post(
+        '/analytics/search-filter-usages',
+        data: {'sessionId': _sessionId, 'filters': filters},
+      );
+    } catch (e) {
+      debugPrint('Failed to log filter usage: $e');
+    }
   }
 
   Future<void> logCrash({
@@ -96,8 +106,11 @@ class AnalyticsService {
     }, forcedScreen: screenName);
   }
 
-
-  Future<void> logGenericEvent(String eventType, Map<String, dynamic> payload, {String? forcedScreen}) async {
+  Future<void> logGenericEvent(
+    String eventType,
+    Map<String, dynamic> payload, {
+    String? forcedScreen,
+  }) async {
     if (_sessionId == null) return;
 
     final event = LocalEvent(
@@ -116,7 +129,9 @@ class AnalyticsService {
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity == ConnectivityResult.none) {
-        debugPrint(' Sin conexión a internet. Los eventos permanecerán en local.');
+        debugPrint(
+          ' Sin conexión a internet. Los eventos permanecerán en local.',
+        );
         return;
       }
 
@@ -125,16 +140,22 @@ class AnalyticsService {
 
       debugPrint('Sincronizando ${pendingEvents.length} eventos pendientes...');
 
-      final eventsData = pendingEvents.map((e) => {
-        'sessionId': _sessionId ?? 'unknown_session',
-        'eventType': e.lat != 0.0 ? 'LOCATION_STATS_UPDATE' : 'SESSION_EVENT', 
-        'screenName': currentScreen ?? 'Unknown',
-        'payload': {
-          'lat': e.lat,
-          'lng': e.lng,
-          'timestamp': e.timestamp.toIso8601String(),
-        },
-      }).toList();
+      final eventsData = pendingEvents
+          .map(
+            (e) => {
+              'sessionId': _sessionId ?? 'unknown_session',
+              'eventType': e.lat != 0.0
+                  ? 'LOCATION_STATS_UPDATE'
+                  : 'SESSION_EVENT',
+              'screenName': currentScreen ?? 'Unknown',
+              'payload': {
+                'lat': e.lat,
+                'lng': e.lng,
+                'timestamp': e.timestamp.toIso8601String(),
+              },
+            },
+          )
+          .toList();
 
       final response = await _apiClient.post(
         '/analytics/batch',
@@ -146,11 +167,13 @@ class AnalyticsService {
           await _localDb.markAsSynced(e.id);
         }
         debugPrint('Sincronización masiva completada con éxito.');
-        
+
         await _localDb.clearSyncedEvents();
       }
     } catch (e) {
-      debugPrint('Falló la sincronización masiva: $e. Los datos siguen seguros en local.');
+      debugPrint(
+        'Falló la sincronización masiva: $e. Los datos siguen seguros en local.',
+      );
     }
   }
 }

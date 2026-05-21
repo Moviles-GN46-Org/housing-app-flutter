@@ -10,6 +10,7 @@ import '../utils/app_theme.dart';
 import '../services/analytics_service.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/main_page_viewmodel.dart';
+import 'property_detail_screen.dart';
 
 // Main (home) screen with a regular feed of housing listings
 
@@ -345,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const DropdownButtonBudget(),
                               const DropdownButtonAmenities(),
                               const DropdownButtonLocation(),
-                              const DropdownButtonRoomType(),
+                              const DropdownButtonUtilities(),
                             ],
                           ),
                         ),
@@ -372,7 +373,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Expanded(
                               child: Center(
                                 child: Text(
-                                  'No listings match "${homeVM.searchQuery}"',
+                                  homeVM.searchQuery.isNotEmpty
+                                      ? 'No listings match "${homeVM.searchQuery}"'
+                                      : 'No listings match the active filters',
                                   style: const TextStyle(
                                     fontFamily: AppTextStyles.fontFamily,
                                     fontSize: 16,
@@ -386,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               child: ListView.builder(
                                 controller: _listScrollController,
                                 padding: const EdgeInsets.only(bottom: 110),
-                                // +1 row for the footer (loader or end-of-list spacer).
+
                                 itemCount: homeVM.filteredProperties.length + 1,
                                 itemBuilder: (context, index) {
                                   if (index ==
@@ -495,18 +498,20 @@ class _InAppScannerView extends StatefulWidget {
 
 class _InAppScannerViewState extends State<_InAppScannerView> {
   late final MobileScannerController _controller;
+  late final MainPageViewModel _mainPageVM;
   bool _handledDetection = false;
 
   @override
   void initState() {
     super.initState();
     _controller = MobileScannerController();
-    context.read<MainPageViewModel>().setCameraScannerActive(true);
+    _mainPageVM = context.read<MainPageViewModel>();
+    _mainPageVM.setCameraScannerActive(true);
   }
 
   @override
   void dispose() {
-    context.read<MainPageViewModel>().setCameraScannerActive(false);
+    _mainPageVM.setCameraScannerActive(false);
     _controller.dispose();
     super.dispose();
   }
@@ -1028,19 +1033,16 @@ const List<String> budgetList = <String>[
   'Above \$1.2M',
 ];
 
-class DropdownButtonBudget extends StatefulWidget {
+class DropdownButtonBudget extends StatelessWidget {
   const DropdownButtonBudget({super.key});
 
   @override
-  State<DropdownButtonBudget> createState() => _DropdownButtonBudgetState();
-}
-
-class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.budgetFilter.isEmpty
+        ? null
+        : homeVM.budgetFilter;
+    final bool hasSelection = homeVM.budgetFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1086,9 +1088,7 @@ class _DropdownButtonBudgetState extends State<DropdownButtonBudget> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setBudgetFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...budgetList].map<Widget>((String value) {
@@ -1262,29 +1262,136 @@ class _DropdownButtonRoomTypeState extends State<DropdownButtonRoomType> {
   }
 }
 
+// Dropdown list for utilities filter
+
+const List<String> utilitiesList = <String>['Included', 'Separate'];
+
+class DropdownButtonUtilities extends StatelessWidget {
+  const DropdownButtonUtilities({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.utilitiesFilter.isEmpty
+        ? null
+        : homeVM.utilitiesFilter;
+    final bool hasSelection = homeVM.utilitiesFilter.isNotEmpty;
+
+    return IntrinsicWidth(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          color: hasSelection ? AppColors.lightBronze : AppColors.white,
+          borderRadius: BorderRadius.circular(25.0),
+          boxShadow: AppShadows.small,
+        ),
+        child: DropdownButton<String>(
+          value: dropdownValue,
+          hint: const Text(
+            'Utilities',
+            style: TextStyle(
+              color: AppColors.dustyTaupe,
+              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontFamily: AppTextStyles.fontFamily,
+            ),
+          ),
+          icon: Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Icon(
+              LucideIcons.chevron_down,
+              color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+            ),
+          ),
+          elevation: 1,
+          isDense: true,
+          style: TextStyle(
+            color: hasSelection ? AppColors.white : AppColors.dustyTaupe,
+            fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 16,
+            fontFamily: AppTextStyles.fontFamily,
+          ),
+          dropdownColor: AppColors.white,
+          borderRadius: BorderRadius.circular(10.0),
+          enableFeedback: true,
+          focusColor: AppColors.linen,
+          iconEnabledColor: hasSelection
+              ? AppColors.white
+              : AppColors.dustyTaupe,
+          iconSize: 20.0,
+          underline: const SizedBox(),
+          onChanged: (String? value) {
+            context.read<HomeViewModel>().setUtilitiesFilter(value ?? '');
+          },
+          selectedItemBuilder: (BuildContext context) {
+            return <String>['', ...utilitiesList].map<Widget>((String value) {
+              if (value == '') {
+                return const Text('Utilities');
+              }
+              return Text(
+                value,
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 16,
+                  fontFamily: AppTextStyles.fontFamily,
+                ),
+              );
+            }).toList();
+          },
+          items: <DropdownMenuItem<String>>[
+            const DropdownMenuItem<String>(
+              value: '',
+              child: Text(
+                'Any',
+                style: TextStyle(
+                  color: AppColors.dustyTaupe,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  fontFamily: AppTextStyles.fontFamily,
+                ),
+              ),
+            ),
+            ...utilitiesList.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: AppColors.dustyTaupe,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontFamily: AppTextStyles.fontFamily,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // Dropdown list for amenities filter
 
 const List<String> amenitiesList = <String>[
   'Wi-Fi',
-  'Furnished',
-  'Kitchen',
+  'Parking',
   'Laundry',
+  'Furnished',
 ];
 
-class DropdownButtonAmenities extends StatefulWidget {
+class DropdownButtonAmenities extends StatelessWidget {
   const DropdownButtonAmenities({super.key});
 
   @override
-  State<DropdownButtonAmenities> createState() =>
-      _DropdownButtonAmenitiesState();
-}
-
-class _DropdownButtonAmenitiesState extends State<DropdownButtonAmenities> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.amenitiesFilter.isEmpty
+        ? null
+        : homeVM.amenitiesFilter;
+    final bool hasSelection = homeVM.amenitiesFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1330,9 +1437,7 @@ class _DropdownButtonAmenitiesState extends State<DropdownButtonAmenities> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setAmenitiesFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...amenitiesList].map<Widget>((String value) {
@@ -1395,19 +1500,16 @@ const List<String> locationList = <String>[
   'Engativá',
 ];
 
-class DropdownButtonLocation extends StatefulWidget {
+class DropdownButtonLocation extends StatelessWidget {
   const DropdownButtonLocation({super.key});
 
   @override
-  State<DropdownButtonLocation> createState() => _DropdownButtonLocationState();
-}
-
-class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
-  String? dropdownValue;
-
-  @override
   Widget build(BuildContext context) {
-    final bool hasSelection = dropdownValue != null && dropdownValue != '';
+    final homeVM = context.watch<HomeViewModel>();
+    final dropdownValue = homeVM.locationFilter.isEmpty
+        ? null
+        : homeVM.locationFilter;
+    final bool hasSelection = homeVM.locationFilter.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1453,9 +1555,7 @@ class _DropdownButtonLocationState extends State<DropdownButtonLocation> {
           iconSize: 20.0,
           underline: const SizedBox(),
           onChanged: (String? value) {
-            setState(() {
-              dropdownValue = value;
-            });
+            context.read<HomeViewModel>().setLocationFilter(value ?? '');
           },
           selectedItemBuilder: (BuildContext context) {
             return <String>['', ...locationList].map<Widget>((String value) {
@@ -1527,218 +1627,227 @@ class PropertyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(24.0),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24.0),
-                  topRight: Radius.circular(24.0),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: property.imageUrl,
-                  height: 164,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, _, _) => Container(
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PropertyDetailScreen(property: property),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(24.0),
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24.0),
+                    topRight: Radius.circular(24.0),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: property.imageUrl,
                     height: 164,
                     width: double.infinity,
-                    color: const Color(0xFFD9CEC8),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: isFavoriteLoading ? null : onFavoriteTap,
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: isFavorite
-                            ? AppColors.lightBronze
-                            : const Color(0xB3FFFFFF),
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.small,
-                      ),
-                      child: Center(
-                        child: isFavoriteLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: AppColors.lightBronze,
-                                ),
-                              )
-                            : Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFavorite
-                                    ? AppColors.white
-                                    : AppColors.lightBronze,
-                                size: 28,
-                              ),
-                      ),
+                    fit: BoxFit.cover,
+                    errorWidget: (_, _, _) => Container(
+                      height: 164,
+                      width: double.infinity,
+                      color: const Color(0xFFD9CEC8),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        property.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: AppTextStyles.fontFamily,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.deepMocha,
-                        ),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.star,
-                          color: AppColors.lightBronze,
-                          size: 16,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          property.averageRating != null
-                              ? property.averageRating!.toStringAsFixed(1)
-                              : '-',
-                          style: TextStyle(
-                            fontFamily: AppTextStyles.fontFamily,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.lightBronze,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.map_pin,
-                                color: AppColors.dustyTaupe,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                property.neighborhood.isNotEmpty
-                                    ? property.neighborhood
-                                    : property.address,
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 14,
-                                  color: AppColors.dustyTaupe,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.bed_single,
-                                color: AppColors.dustyTaupe,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${property.bedrooms} Bed \u00b7 ${property.bathrooms} Bath',
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 14,
-                                  color: AppColors.dustyTaupe,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    IntrinsicWidth(
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isFavoriteLoading ? null : onFavoriteTap,
+                      customBorder: const CircleBorder(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
-                          color: AppColors.lightBronze,
-                          borderRadius: BorderRadius.circular(12),
+                          color: isFavorite
+                              ? AppColors.lightBronze
+                              : const Color(0xB3FFFFFF),
+                          shape: BoxShape.circle,
+                          boxShadow: AppShadows.small,
                         ),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text:
-                                    '\$${NumberFormat('#,###').format(property.monthlyRent.toInt())}',
-                                style: const TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.white,
+                        child: Center(
+                          child: isFavoriteLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: AppColors.lightBronze,
+                                  ),
+                                )
+                              : Icon(
+                                  isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isFavorite
+                                      ? AppColors.white
+                                      : AppColors.lightBronze,
+                                  size: 28,
                                 ),
-                              ),
-                              const TextSpan(
-                                text: ' /mo',
-                                style: TextStyle(
-                                  fontFamily: AppTextStyles.fontFamily,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.white,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          property.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.deepMocha,
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.star,
+                            color: AppColors.lightBronze,
+                            size: 16,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            property.averageRating != null
+                                ? property.averageRating!.toStringAsFixed(1)
+                                : '-',
+                            style: TextStyle(
+                              fontFamily: AppTextStyles.fontFamily,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.lightBronze,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.map_pin,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  property.neighborhood.isNotEmpty
+                                      ? property.neighborhood
+                                      : property.address,
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 14,
+                                    color: AppColors.dustyTaupe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.bed_single,
+                                  color: AppColors.dustyTaupe,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${property.bedrooms} Bed \u00b7 ${property.bathrooms} Bath',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 14,
+                                    color: AppColors.dustyTaupe,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IntrinsicWidth(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightBronze,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '\$${NumberFormat('#,###').format(property.monthlyRent.toInt())}',
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' /mo',
+                                  style: TextStyle(
+                                    fontFamily: AppTextStyles.fontFamily,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
