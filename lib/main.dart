@@ -55,6 +55,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<AnalyticsService>.value(value: analyticsService),
+        Provider<PropertyRepository>.value(value: propertyRepository),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
         ChangeNotifierProvider(
           create: (_) => HomeViewModel(

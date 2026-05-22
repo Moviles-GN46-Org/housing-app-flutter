@@ -5,8 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/property_model.dart';
+import '../models/review_model.dart';
+import '../repositories/property_repository.dart';
 import '../utils/app_theme.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'write_review_screen.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
   const PropertyDetailScreen({super.key, required this.property});
@@ -20,6 +24,24 @@ class PropertyDetailScreen extends StatefulWidget {
 class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+
+  List<Review> _reviews = [];
+  bool _reviewsLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final repo = context.read<PropertyRepository>();
+      final reviews = await repo.getPropertyReviews(widget.property.id);
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _reviewsLoading = false;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -379,6 +401,96 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       );
                     },
                   ),
+
+                  const SizedBox(height: 32),
+
+                  // ── Write a review button ──
+                  Builder(builder: (context) {
+                    final currentUserId =
+                        context.read<AuthViewModel>().currentUser?.id;
+                    final alreadyReviewed = currentUserId != null &&
+                        _reviews.any((r) => r.author.id == currentUserId);
+
+                    if (alreadyReviewed) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 13,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4E0CA),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(
+                              LucideIcons.circle_check,
+                              size: 16,
+                              color: AppColors.dustyTaupe,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'You have already reviewed this property',
+                              style: TextStyle(
+                                fontFamily: AppTextStyles.fontFamily,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.dustyTaupe,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final newReview = await Navigator.of(context).push<Review>(
+                            MaterialPageRoute(
+                              builder: (_) => WriteReviewScreen(property: property),
+                            ),
+                          );
+                          if (newReview != null && mounted) {
+                            setState(() => _reviews = [newReview, ..._reviews]);
+                          }
+                        },
+                        icon: const Icon(LucideIcons.pencil, size: 16),
+                        label: const Text(
+                          'Write a review',
+                          style: TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.lightBronze,
+                          side: const BorderSide(
+                            color: AppColors.lightBronze,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 20),
+
+                  // ── Reviews section ──
+                  _ReviewsSection(
+                    reviews: _reviews,
+                    loading: _reviewsLoading,
+                    averageRating: property.averageRating,
+                    reviewCount: property.reviewCount,
+                  ),
                 ],
               ),
             ),
@@ -434,6 +546,273 @@ class _InfoCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Reviews section ───────────────────────────────────────────────────────────
+
+class _ReviewsSection extends StatelessWidget {
+  const _ReviewsSection({
+    required this.reviews,
+    required this.loading,
+    this.averageRating,
+    this.reviewCount,
+  });
+
+  final List<Review> reviews;
+  final bool loading;
+  final double? averageRating;
+  final int? reviewCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section header ──
+        Row(
+          children: [
+            const Icon(
+              LucideIcons.star,
+              size: 17,
+              color: AppColors.lightBronze,
+            ),
+            const SizedBox(width: 7),
+            const Text(
+              'Reviews',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fontFamily,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.deepMocha,
+              ),
+            ),
+            if (averageRating != null) ...[
+              const SizedBox(width: 10),
+              Text(
+                averageRating!.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fontFamily,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.lightBronze,
+                ),
+              ),
+            ],
+            const Spacer(),
+            if (reviewCount != null)
+              Text(
+                '$reviewCount ${reviewCount == 1 ? 'review' : 'reviews'}',
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fontFamily,
+                  fontSize: 13,
+                  color: AppColors.dustyTaupe,
+                ),
+              ),
+          ],
+        ),
+
+        const SizedBox(height: 14),
+
+        if (loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.lightBronze,
+              ),
+            ),
+          )
+        else if (reviews.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppShadows.small,
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  LucideIcons.message_square,
+                  size: 32,
+                  color: AppColors.dustyTaupe.withAlpha(120),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'No reviews yet',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fontFamily,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.deepMocha,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Be the first to share your experience.',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fontFamily,
+                    fontSize: 13,
+                    color: AppColors.dustyTaupe,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: reviews
+                .map((r) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ReviewCard(review: r),
+                    ))
+                .toList(),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Single review card ────────────────────────────────────────────────────────
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.review});
+
+  final Review review;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials =
+        '${review.author.firstName.isNotEmpty ? review.author.firstName[0] : ''}${review.author.lastName.isNotEmpty ? review.author.lastName[0] : ''}'
+            .toUpperCase();
+
+    final dateLabel = DateFormat('MMM d, yyyy').format(review.createdAt);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppShadows.small,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Author row ──
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4E0CA),
+                  shape: BoxShape.circle,
+                ),
+                child: review.author.profilePictureUrl != null &&
+                        review.author.profilePictureUrl!.isNotEmpty
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: review.author.profilePictureUrl!,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                fontFamily: AppTextStyles.fontFamily,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.dustyTaupe,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dustyTaupe,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 10),
+              // Name + date
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.author.fullName,
+                      style: const TextStyle(
+                        fontFamily: AppTextStyles.fontFamily,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.deepMocha,
+                      ),
+                    ),
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        fontFamily: AppTextStyles.fontFamily,
+                        fontSize: 12,
+                        color: AppColors.dustyTaupe,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Star rating
+              _StarRating(rating: review.rating),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // ── Comment ──
+          Text(
+            review.comment,
+            style: const TextStyle(
+              fontFamily: AppTextStyles.fontFamily,
+              fontSize: 14,
+              color: AppColors.ashBrown,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Star rating row ───────────────────────────────────────────────────────────
+
+class _StarRating extends StatelessWidget {
+  const _StarRating({required this.rating});
+
+  final int rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) {
+        return Icon(
+          i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+          size: 15,
+          color: i < rating
+              ? AppColors.lightBronze
+              : AppColors.dustyTaupe.withAlpha(100),
+        );
+      }),
     );
   }
 }
