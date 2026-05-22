@@ -1,4 +1,5 @@
 import '../models/property_model.dart';
+import '../models/review_model.dart';
 import '../services/api_client.dart';
 
 class PropertyPage {
@@ -130,4 +131,48 @@ class PropertyRepository {
 
     return null;
   }
+
+  Future<List<Review>> getPropertyReviews(String propertyId) async {
+    try {
+      final response = await _api.get('/properties/$propertyId/reviews');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final raw = response.data['data'] as List? ?? [];
+        return raw
+            .map((item) => Review.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (_) {}
+
+    return [];
+  }
+
+  /// Returns the created [Review] on success.
+  /// Throws a [ReviewSubmitException] with a user-readable message on failure.
+  Future<Review> createReview({
+    required String propertyId,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await _api.post(
+      '/properties/$propertyId/reviews',
+      data: {'rating': rating, 'comment': comment},
+    );
+
+    if (response.statusCode == 201 && response.data['success'] == true) {
+      return Review.fromJson(response.data['data'] as Map<String, dynamic>);
+    }
+
+    final message = (response.data is Map)
+        ? response.data['message']?.toString() ?? 'Could not submit review.'
+        : 'Could not submit review.';
+    throw ReviewSubmitException(message);
+  }
+}
+
+class ReviewSubmitException implements Exception {
+  const ReviewSubmitException(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }

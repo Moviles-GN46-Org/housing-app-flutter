@@ -10,6 +10,7 @@ class Property {
   final int bathrooms;
   final List<String> imageUrls;
   final double? averageRating;
+  final int? reviewCount;
   final String? description;
   final bool includesUtilities;
   final bool hasWifi;
@@ -33,6 +34,7 @@ class Property {
     required this.bathrooms,
     required this.imageUrls,
     this.averageRating,
+    this.reviewCount,
     this.description,
     this.includesUtilities = false,
     this.hasWifi = false,
@@ -67,6 +69,7 @@ class Property {
       'bathrooms': bathrooms,
       'imageUrls': imageUrls,
       'averageRating': averageRating,
+      'reviewCount': reviewCount,
       'description': description,
       'includesUtilities': includesUtilities,
       'hasWifi': hasWifi,
@@ -103,6 +106,7 @@ class Property {
       averageRating: json['averageRating'] != null
           ? double.tryParse(json['averageRating'].toString())
           : null,
+      reviewCount: json['reviewCount'] as int?,
       description: json['description']?.toString(),
       includesUtilities: json['includesUtilities'] as bool? ?? false,
       hasWifi: json['hasWifi'] as bool? ?? false,
