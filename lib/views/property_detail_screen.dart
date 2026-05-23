@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/property_model.dart';
 import '../models/review_model.dart';
 import '../repositories/property_repository.dart';
+import '../services/offline_queue_service.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
@@ -91,7 +92,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
       backgroundColor: AppColors.linen,
       body: CustomScrollView(
         slivers: [
-          // ── App bar that collapses into the photo carousel ──
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
@@ -132,7 +132,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // ── Photo carousel ──
                   PageView.builder(
                     controller: _pageController,
                     itemCount: property.imageUrls.length,
@@ -152,7 +151,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       ),
                     ),
                   ),
-                  // ── Gradient so the AppBar text stays legible ──
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -162,7 +160,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                       ),
                     ),
                   ),
-                  // ── VERIFIED LISTING badge ──
                   if (property.isVerified)
                     Positioned(
                       top: 90,
@@ -200,7 +197,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         ),
                       ),
                     ),
-                  // ── Dots indicator ──
                   if (property.imageUrls.length > 1)
                     Positioned(
                       bottom: 14,
@@ -229,14 +225,12 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             ),
           ),
 
-          // ── Body content ──
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Title + address + favorite ──
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -329,7 +323,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 20),
 
-                  // ── Info cards ──
                   Row(
                     children: [
                       _InfoCard(
@@ -364,7 +357,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ── About ──
                   const Text(
                     'About this property',
                     style: TextStyle(
@@ -387,7 +379,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     ),
                   ),
 
-                  // ── Amenity chips ──
                   Builder(
                     builder: (context) {
                       final chips = _buildAmenityChips(property);
@@ -404,14 +395,18 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ── Write a review button ──
                   Builder(builder: (context) {
                     final currentUserId =
                         context.read<AuthViewModel>().currentUser?.id;
-                    final alreadyReviewed = currentUserId != null &&
-                        _reviews.any((r) => r.author.id == currentUserId);
+                    final offlineQueue =
+                        context.watch<OfflineQueueService>();
 
-                    if (alreadyReviewed) {
+                    final reviewedOnServer = currentUserId != null &&
+                        _reviews.any((r) => r.author.id == currentUserId);
+                    final reviewPendingSync = currentUserId != null &&
+                        offlineQueue.hasPendingReviewForProperty(property.id);
+
+                    if (reviewedOnServer || reviewPendingSync) {
                       return Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -424,16 +419,20 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
+                          children: [
                             Icon(
-                              LucideIcons.circle_check,
+                              reviewPendingSync
+                                  ? LucideIcons.clock
+                                  : LucideIcons.circle_check,
                               size: 16,
                               color: AppColors.dustyTaupe,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
-                              'You have already reviewed this property',
-                              style: TextStyle(
+                              reviewPendingSync
+                                  ? 'Review pending sync'
+                                  : 'You have already reviewed this property',
+                              style: const TextStyle(
                                 fontFamily: AppTextStyles.fontFamily,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -484,7 +483,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 20),
 
-                  // ── Reviews section ──
                   _ReviewsSection(
                     reviews: _reviews,
                     loading: _reviewsLoading,
@@ -500,8 +498,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     );
   }
 }
-
-// ── Info card widget ──────────────────────────────────────────────────────────
 
 class _InfoCard extends StatelessWidget {
   const _InfoCard({required this.label, required this.value, this.valueColor});
@@ -550,8 +546,6 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-// ── Reviews section ───────────────────────────────────────────────────────────
-
 class _ReviewsSection extends StatelessWidget {
   const _ReviewsSection({
     required this.reviews,
@@ -570,7 +564,6 @@ class _ReviewsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Section header ──
         Row(
           children: [
             const Icon(
@@ -677,8 +670,6 @@ class _ReviewsSection extends StatelessWidget {
   }
 }
 
-// ── Single review card ────────────────────────────────────────────────────────
-
 class _ReviewCard extends StatelessWidget {
   const _ReviewCard({required this.review});
 
@@ -702,10 +693,8 @@ class _ReviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Author row ──
           Row(
             children: [
-              // Avatar
               Container(
                 width: 38,
                 height: 38,
@@ -745,7 +734,6 @@ class _ReviewCard extends StatelessWidget {
                       ),
               ),
               const SizedBox(width: 10),
-              // Name + date
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,14 +758,12 @@ class _ReviewCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // Star rating
               _StarRating(rating: review.rating),
             ],
           ),
 
           const SizedBox(height: 10),
 
-          // ── Comment ──
           Text(
             review.comment,
             style: const TextStyle(
@@ -792,8 +778,6 @@ class _ReviewCard extends StatelessWidget {
     );
   }
 }
-
-// ── Star rating row ───────────────────────────────────────────────────────────
 
 class _StarRating extends StatelessWidget {
   const _StarRating({required this.rating});

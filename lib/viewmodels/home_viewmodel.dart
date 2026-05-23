@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -7,18 +8,26 @@ import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../repositories/notification_repository.dart';
 import '../repositories/property_repository.dart';
+import '../services/analytics_service.dart';
+import '../services/offline_queue_service.dart';
 import '../services/property_cache_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final PropertyRepository _repository;
   final NotificationRepository _notificationRepository;
   final PropertyCacheService _cache;
+  final AnalyticsService? _analyticsService;
+  final OfflineQueueService? _offlineQueue;
 
   HomeViewModel(
     this._repository,
     this._notificationRepository, {
     PropertyCacheService? cache,
-  }) : _cache = cache ?? PropertyCacheService();
+    AnalyticsService? analyticsService,
+    OfflineQueueService? offlineQueue,
+  }) : _cache = cache ?? PropertyCacheService(),
+       _analyticsService = analyticsService,
+       _offlineQueue = offlineQueue;
 
   static const int _pageSize = 10;
 
@@ -34,6 +43,10 @@ class HomeViewModel extends ChangeNotifier {
   DateTime? _cachedAt;
   String? _error;
   String _searchQuery = '';
+  String _budgetFilter = '';
+  String _amenitiesFilter = '';
+  String _locationFilter = '';
+  String _utilitiesFilter = '';
   Timer? _notificationsPollingTimer;
 
   List<Property> get properties {
@@ -61,15 +74,45 @@ class HomeViewModel extends ChangeNotifier {
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
   String get searchQuery => _searchQuery;
+  String get budgetFilter => _budgetFilter;
+  String get amenitiesFilter => _amenitiesFilter;
+  String get locationFilter => _locationFilter;
+  String get utilitiesFilter => _utilitiesFilter;
+  bool get hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _budgetFilter.isNotEmpty ||
+      _amenitiesFilter.isNotEmpty ||
+      _locationFilter.isNotEmpty ||
+      _utilitiesFilter.isNotEmpty;
 
   List<Property> get filteredProperties {
-    if (_searchQuery.isEmpty) return properties;
-    return properties.where((p) {
-      return p.title.toLowerCase().contains(_searchQuery) ||
-          p.address.toLowerCase().contains(_searchQuery) ||
-          p.neighborhood.toLowerCase().contains(_searchQuery) ||
-          (p.description?.toLowerCase().contains(_searchQuery) ?? false);
-    }).toList();
+    var result = properties;
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((p) {
+        return p.title.toLowerCase().contains(_searchQuery) ||
+            p.address.toLowerCase().contains(_searchQuery) ||
+            p.neighborhood.toLowerCase().contains(_searchQuery) ||
+            (p.description?.toLowerCase().contains(_searchQuery) ?? false);
+      }).toList();
+    }
+    if (_budgetFilter.isNotEmpty) {
+      result = result.where(_matchesBudget).toList();
+    }
+    if (_amenitiesFilter.isNotEmpty) {
+      result = result.where(_matchesAmenity).toList();
+    }
+    if (_locationFilter.isNotEmpty) {
+      result = result
+          .where(
+            (p) =>
+                p.neighborhood.toLowerCase() == _locationFilter.toLowerCase(),
+          )
+          .toList();
+    }
+    if (_utilitiesFilter.isNotEmpty) {
+      result = result.where(_matchesUtilities).toList();
+    }
+    return result;
   }
 
   Future<Property?> fetchPropertyById(String id) =>
@@ -85,9 +128,46 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Cache-then-network: paint cached properties instantly, then replace them
-  // with fresh data if the network call succeeds. If we're offline, whatever
-  // is on screen stays on screen.
+  void setBudgetFilter(String value) {
+    _budgetFilter = value;
+    if (value.isNotEmpty) {
+      _analyticsService?.logSearchFilterUsages([
+        {'category': 'budget', 'value': value},
+      ]);
+    }
+    notifyListeners();
+  }
+
+  void setAmenitiesFilter(String value) {
+    _amenitiesFilter = value;
+    if (value.isNotEmpty) {
+      _analyticsService?.logSearchFilterUsages([
+        {'category': 'amenities', 'value': value},
+      ]);
+    }
+    notifyListeners();
+  }
+
+  void setLocationFilter(String value) {
+    _locationFilter = value;
+    if (value.isNotEmpty) {
+      _analyticsService?.logSearchFilterUsages([
+        {'category': 'location', 'value': value},
+      ]);
+    }
+    notifyListeners();
+  }
+
+  void setUtilitiesFilter(String value) {
+    _utilitiesFilter = value;
+    if (value.isNotEmpty) {
+      _analyticsService?.logSearchFilterUsages([
+        {'category': 'utilities', 'value': value},
+      ]);
+    }
+    notifyListeners();
+  }
+
   Future<void> fetchProperties() async {
     _clearError();
 
@@ -114,13 +194,9 @@ class HomeViewModel extends ChangeNotifier {
       _cachedAt = null;
       await _cache.writeFirstPage(page.items);
 
-      // Favorites live on a different endpoint. their success is independent
-      // of the property fetch. If offline, leave whatever we already have.
       try {
         _favoritePropertyIds = await _repository.getFavoritePropertyIds();
-      } on DioException {
-        // keep previous favorites in memory
-      }
+      } on DioException catch (_) {}
       notifyListeners();
     } on DioException catch (e) {
       if (_properties.isEmpty) {
@@ -150,8 +226,6 @@ class HomeViewModel extends ChangeNotifier {
       }
       _hasMore = next.hasMore;
     } on DioException {
-      // Offline or server error while paginating: stop trying to load more for
-      // this session; the user can retry by pulling-to-refresh (retryProperties).
       _hasMore = false;
     } finally {
       _isLoadingMore = false;
@@ -204,26 +278,78 @@ class HomeViewModel extends ChangeNotifier {
     try {
       final success = await _repository.toggleFavorite(propertyId);
       if (!success) {
-        if (wasFavorite) {
-          _favoritePropertyIds.add(propertyId);
-        } else {
-          _favoritePropertyIds.remove(propertyId);
-        }
-        notifyListeners();
+        _revertFavorite(propertyId, wasFavorite);
         return false;
       }
       return true;
-    } catch (_) {
-      if (wasFavorite) {
-        _favoritePropertyIds.add(propertyId);
-      } else {
-        _favoritePropertyIds.remove(propertyId);
+    } on DioException catch (e) {
+      if (_isOfflineError(e)) {
+        await _offlineQueue?.enqueueFavoriteToggle(propertyId: propertyId);
+        return true;
       }
-      notifyListeners();
+      _revertFavorite(propertyId, wasFavorite);
+      return false;
+    } catch (_) {
+      _revertFavorite(propertyId, wasFavorite);
       return false;
     } finally {
       _favoriteActionInFlight.remove(propertyId);
       notifyListeners();
+    }
+  }
+
+  void _revertFavorite(String propertyId, bool wasFavorite) {
+    if (wasFavorite) {
+      _favoritePropertyIds.add(propertyId);
+    } else {
+      _favoritePropertyIds.remove(propertyId);
+    }
+    notifyListeners();
+  }
+
+  bool _isOfflineError(DioException e) =>
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.error is SocketException;
+
+  bool _matchesBudget(Property p) {
+    switch (_budgetFilter) {
+      case 'Under \$600k':
+        return p.monthlyRent < 600000;
+      case '\$600k - \$900k':
+        return p.monthlyRent >= 600000 && p.monthlyRent <= 900000;
+      case '\$900k - \$1.2M':
+        return p.monthlyRent > 900000 && p.monthlyRent <= 1200000;
+      case 'Above \$1.2M':
+        return p.monthlyRent > 1200000;
+      default:
+        return true;
+    }
+  }
+
+  bool _matchesAmenity(Property p) {
+    switch (_amenitiesFilter) {
+      case 'Wi-Fi':
+        return p.hasWifi;
+      case 'Parking':
+        return p.hasParking;
+      case 'Laundry':
+        return p.hasLaundry;
+      case 'Furnished':
+        return p.furnished;
+      default:
+        return true;
+    }
+  }
+
+  bool _matchesUtilities(Property p) {
+    switch (_utilitiesFilter) {
+      case 'Included':
+        return p.includesUtilities;
+      case 'Separate':
+        return !p.includesUtilities;
+      default:
+        return true;
     }
   }
 
