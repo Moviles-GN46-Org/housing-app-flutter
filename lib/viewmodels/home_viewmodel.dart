@@ -48,24 +48,35 @@ class HomeViewModel extends ChangeNotifier {
   String _locationFilter = '';
   String _utilitiesFilter = '';
   Timer? _notificationsPollingTimer;
+  List<Property>? _sortedPropertiesCache;
+  List<Property>? _filteredPropertiesCache;
+  List<String>? _sortedNeighborhoodsCache;
+  bool _isSortCacheDirty = true;
+  bool _isFilteredCacheDirty = true;
+  bool _isNeighborhoodsCacheDirty = true;
 
   List<Property> get properties {
-    final sorted = List<Property>.from(_properties);
-    sorted.sort((a, b) {
-      final aFav = _favoritePropertyIds.contains(a.id);
-      final bFav = _favoritePropertyIds.contains(b.id);
-      if (aFav != bFav) return aFav ? -1 : 1;
-      if (a.hasImage != b.hasImage) return a.hasImage ? -1 : 1;
-      return 0;
-    });
-    return sorted;
+    if (_isSortCacheDirty || _sortedPropertiesCache == null) {
+      final sorted = List<Property>.from(_properties);
+      sorted.sort((a, b) {
+        final aFav = _favoritePropertyIds.contains(a.id);
+        final bFav = _favoritePropertyIds.contains(b.id);
+        if (aFav != bFav) return aFav ? -1 : 1;
+        if (a.hasImage != b.hasImage) return a.hasImage ? -1 : 1;
+        return 0;
+      });
+      _sortedPropertiesCache = List<Property>.unmodifiable(sorted);
+      _isSortCacheDirty = false;
+    }
+    return _sortedPropertiesCache!;
   }
 
   Set<String> get favoritePropertyIds => _favoritePropertyIds;
   List<AppNotification> get notifications => _notifications;
   List<AppNotification> get unreadNotifications =>
       _notifications.where((item) => !item.isRead).toList();
-  int get unreadNotificationsCount => unreadNotifications.length;
+  int get unreadNotificationsCount =>
+      _notifications.where((item) => !item.isRead).length;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get isFromCache => _isFromCache;
@@ -86,33 +97,62 @@ class HomeViewModel extends ChangeNotifier {
       _utilitiesFilter.isNotEmpty;
 
   List<Property> get filteredProperties {
-    var result = properties;
-    if (_searchQuery.isNotEmpty) {
-      result = result.where((p) {
-        return p.title.toLowerCase().contains(_searchQuery) ||
-            p.address.toLowerCase().contains(_searchQuery) ||
-            p.neighborhood.toLowerCase().contains(_searchQuery) ||
-            (p.description?.toLowerCase().contains(_searchQuery) ?? false);
-      }).toList();
+    if (_isFilteredCacheDirty || _filteredPropertiesCache == null) {
+      var result = properties;
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery;
+        result = result.where((p) {
+          return p.title.toLowerCase().contains(query) ||
+              p.address.toLowerCase().contains(query) ||
+              p.neighborhood.toLowerCase().contains(query) ||
+              (p.description?.toLowerCase().contains(query) ?? false);
+        }).toList();
+      }
+      if (_budgetFilter.isNotEmpty) {
+        result = result.where(_matchesBudget).toList();
+      }
+      if (_amenitiesFilter.isNotEmpty) {
+        result = result.where(_matchesAmenity).toList();
+      }
+      if (_locationFilter.isNotEmpty) {
+        final normalizedLocationFilter = _locationFilter.toLowerCase();
+        result = result
+            .where(
+              (p) => p.neighborhood.toLowerCase() == normalizedLocationFilter,
+            )
+            .toList();
+      }
+      if (_utilitiesFilter.isNotEmpty) {
+        result = result.where(_matchesUtilities).toList();
+      }
+      _filteredPropertiesCache = List<Property>.unmodifiable(result);
+      _isFilteredCacheDirty = false;
     }
-    if (_budgetFilter.isNotEmpty) {
-      result = result.where(_matchesBudget).toList();
+
+    return _filteredPropertiesCache!;
+  }
+
+  List<String> neighborhoodSuggestions(String query) {
+    if (_isNeighborhoodsCacheDirty || _sortedNeighborhoodsCache == null) {
+      final neighborhoods =
+          _properties
+              .map((p) => p.neighborhood)
+              .where((n) => n.trim().isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
+      _sortedNeighborhoodsCache = List<String>.unmodifiable(neighborhoods);
+      _isNeighborhoodsCacheDirty = false;
     }
-    if (_amenitiesFilter.isNotEmpty) {
-      result = result.where(_matchesAmenity).toList();
+
+    if (query.isEmpty) {
+      return _sortedNeighborhoodsCache!;
     }
-    if (_locationFilter.isNotEmpty) {
-      result = result
-          .where(
-            (p) =>
-                p.neighborhood.toLowerCase() == _locationFilter.toLowerCase(),
-          )
-          .toList();
-    }
-    if (_utilitiesFilter.isNotEmpty) {
-      result = result.where(_matchesUtilities).toList();
-    }
-    return result;
+
+    final normalized = query.trim().toLowerCase();
+    return _sortedNeighborhoodsCache!
+        .where((n) => n.toLowerCase().contains(normalized))
+        .toList(growable: false);
   }
 
   Future<Property?> fetchPropertyById(String id) =>
@@ -124,12 +164,17 @@ class HomeViewModel extends ChangeNotifier {
       _favoriteActionInFlight.contains(propertyId);
 
   void setSearchQuery(String query) {
-    _searchQuery = query.trim().toLowerCase();
+    final normalized = query.trim().toLowerCase();
+    if (_searchQuery == normalized) return;
+    _searchQuery = normalized;
+    _markFilteredCacheDirty();
     notifyListeners();
   }
 
   void setBudgetFilter(String value) {
+    if (_budgetFilter == value) return;
     _budgetFilter = value;
+    _markFilteredCacheDirty();
     if (value.isNotEmpty) {
       _analyticsService?.logSearchFilterUsages([
         {'category': 'budget', 'value': value},
@@ -139,7 +184,9 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void setAmenitiesFilter(String value) {
+    if (_amenitiesFilter == value) return;
     _amenitiesFilter = value;
+    _markFilteredCacheDirty();
     if (value.isNotEmpty) {
       _analyticsService?.logSearchFilterUsages([
         {'category': 'amenities', 'value': value},
@@ -149,7 +196,9 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void setLocationFilter(String value) {
+    if (_locationFilter == value) return;
     _locationFilter = value;
+    _markFilteredCacheDirty();
     if (value.isNotEmpty) {
       _analyticsService?.logSearchFilterUsages([
         {'category': 'location', 'value': value},
@@ -159,7 +208,9 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void setUtilitiesFilter(String value) {
+    if (_utilitiesFilter == value) return;
     _utilitiesFilter = value;
+    _markFilteredCacheDirty();
     if (value.isNotEmpty) {
       _analyticsService?.logSearchFilterUsages([
         {'category': 'utilities', 'value': value},
@@ -174,6 +225,7 @@ class HomeViewModel extends ChangeNotifier {
     final cached = await _cache.readFirstPage();
     if (cached != null && cached.isNotEmpty) {
       _properties = cached;
+      _markPropertyDerivedCachesDirty();
       _isFromCache = true;
       _cachedAt = await _cache.readCachedAt();
       _hasMore = cached.length >= _pageSize;
@@ -188,6 +240,7 @@ class HomeViewModel extends ChangeNotifier {
         limit: _pageSize,
       );
       _properties = page.items;
+      _markPropertyDerivedCachesDirty();
       _currentPage = page.page;
       _hasMore = page.hasMore;
       _isFromCache = false;
@@ -196,6 +249,8 @@ class HomeViewModel extends ChangeNotifier {
 
       try {
         _favoritePropertyIds = await _repository.getFavoritePropertyIds();
+        _isSortCacheDirty = true;
+        _isFilteredCacheDirty = true;
       } on DioException catch (_) {}
       notifyListeners();
     } on DioException catch (e) {
@@ -222,6 +277,7 @@ class HomeViewModel extends ChangeNotifier {
       );
       if (next.items.isNotEmpty) {
         _properties = [..._properties, ...next.items];
+        _markPropertyDerivedCachesDirty();
         _currentPage = next.page;
       }
       _hasMore = next.hasMore;
@@ -273,6 +329,8 @@ class HomeViewModel extends ChangeNotifier {
     } else {
       _favoritePropertyIds.add(propertyId);
     }
+    _isSortCacheDirty = true;
+    _isFilteredCacheDirty = true;
     notifyListeners();
 
     try {
@@ -304,6 +362,8 @@ class HomeViewModel extends ChangeNotifier {
     } else {
       _favoritePropertyIds.remove(propertyId);
     }
+    _isSortCacheDirty = true;
+    _isFilteredCacheDirty = true;
     notifyListeners();
   }
 
@@ -359,8 +419,19 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void _setLoading(bool value) {
+    if (_isLoading == value) return;
     _isLoading = value;
     notifyListeners();
+  }
+
+  void _markPropertyDerivedCachesDirty() {
+    _isSortCacheDirty = true;
+    _isFilteredCacheDirty = true;
+    _isNeighborhoodsCacheDirty = true;
+  }
+
+  void _markFilteredCacheDirty() {
+    _isFilteredCacheDirty = true;
   }
 
   void _clearError() {
