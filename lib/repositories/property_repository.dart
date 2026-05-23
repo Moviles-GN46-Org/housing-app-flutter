@@ -147,8 +147,6 @@ class PropertyRepository {
     return [];
   }
 
-  /// Returns the created [Review] on success.
-  /// Throws a [ReviewSubmitException] with a user-readable message on failure.
   Future<Review> createReview({
     required String propertyId,
     required int rating,

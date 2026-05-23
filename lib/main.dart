@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/analytics_service.dart';
 import 'services/api_client.dart';
+import 'services/offline_queue_service.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/notification_repository.dart';
 import 'repositories/property_repository.dart';
@@ -32,6 +33,10 @@ void main() async {
   final notificationRepository = NotificationRepository(apiClient);
 
   final analyticsService = AnalyticsService(apiClient);
+  final offlineQueueService = OfflineQueueService(
+    propertyRepository: propertyRepository,
+  );
+  await offlineQueueService.init();
 
   FlutterError.onError = (details) {
     analyticsService.logCrash(
@@ -56,12 +61,16 @@ void main() async {
       providers: [
         Provider<AnalyticsService>.value(value: analyticsService),
         Provider<PropertyRepository>.value(value: propertyRepository),
+        ChangeNotifierProvider<OfflineQueueService>.value(
+          value: offlineQueueService,
+        ),
         ChangeNotifierProvider(create: (_) => AuthViewModel(authRepository)),
         ChangeNotifierProvider(
           create: (_) => HomeViewModel(
             propertyRepository,
             notificationRepository,
             analyticsService: analyticsService,
+            offlineQueue: offlineQueueService,
           ),
         ),
         ChangeNotifierProxyProvider<HomeViewModel, MainPageViewModel>(

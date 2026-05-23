@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/property_model.dart';
 import '../models/review_model.dart';
 import '../repositories/property_repository.dart';
+import '../services/offline_queue_service.dart';
 import '../utils/app_theme.dart';
 
 class WriteReviewScreen extends StatefulWidget {
@@ -33,6 +36,11 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
     super.dispose();
   }
 
+  bool _isOfflineError(DioException e) =>
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.error is SocketException;
+
   Future<void> _submit() async {
     if (_rating == 0) {
       setState(() => _errorMessage = 'Please select a star rating.');
@@ -45,21 +53,32 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       _errorMessage = null;
     });
 
+    final repo = context.read<PropertyRepository>();
+    final queue = context.read<OfflineQueueService>();
+
     try {
-      final repo = context.read<PropertyRepository>();
       final review = await repo.createReview(
         propertyId: widget.property.id,
         rating: _rating,
         comment: _commentController.text.trim(),
       );
       if (mounted) Navigator.of(context).pop<Review>(review);
-    } on ReviewSubmitException catch (e) {
-      setState(() => _errorMessage = e.message);
     } on DioException catch (e) {
+      if (_isOfflineError(e)) {
+        await queue.enqueueReview(
+          propertyId: widget.property.id,
+          rating: _rating,
+          comment: _commentController.text.trim(),
+        );
+        if (mounted) Navigator.of(context).pop<Review>(null);
+        return;
+      }
       final msg = (e.response?.data is Map)
           ? e.response!.data['message']?.toString()
           : null;
       setState(() => _errorMessage = msg ?? 'Network error. Please try again.');
+    } on ReviewSubmitException catch (e) {
+      setState(() => _errorMessage = e.message);
     } catch (_) {
       setState(() => _errorMessage = 'Something went wrong. Please try again.');
     } finally {
@@ -100,7 +119,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Property summary card ──
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -168,7 +186,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
                 const SizedBox(height: 28),
 
-                // ── Star rating ──
                 const Text(
                   'Your rating',
                   style: TextStyle(
@@ -230,7 +247,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
                 const SizedBox(height: 28),
 
-                // ── Comment field ──
                 const Text(
                   'Your review',
                   style: TextStyle(
@@ -308,7 +324,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
                 const SizedBox(height: 16),
 
-                // ── Error message ──
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -344,7 +359,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
                 const SizedBox(height: 28),
 
-                // ── Submit button ──
                 SizedBox(
                   width: double.infinity,
                   height: 52,
