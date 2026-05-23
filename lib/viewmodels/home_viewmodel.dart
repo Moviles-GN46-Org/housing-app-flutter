@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import '../models/property_model.dart';
 import '../repositories/notification_repository.dart';
 import '../repositories/property_repository.dart';
 import '../services/analytics_service.dart';
+import '../services/offline_queue_service.dart';
 import '../services/property_cache_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
@@ -15,14 +17,17 @@ class HomeViewModel extends ChangeNotifier {
   final NotificationRepository _notificationRepository;
   final PropertyCacheService _cache;
   final AnalyticsService? _analyticsService;
+  final OfflineQueueService? _offlineQueue;
 
   HomeViewModel(
     this._repository,
     this._notificationRepository, {
     PropertyCacheService? cache,
     AnalyticsService? analyticsService,
+    OfflineQueueService? offlineQueue,
   }) : _cache = cache ?? PropertyCacheService(),
-       _analyticsService = analyticsService;
+       _analyticsService = analyticsService,
+       _offlineQueue = offlineQueue;
 
   static const int _pageSize = 10;
 
@@ -163,9 +168,6 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Cache-then-network: paint cached properties instantly, then replace them
-  // with fresh data if the network call succeeds. If we're offline, whatever
-  // is on screen stays on screen.
   Future<void> fetchProperties() async {
     _clearError();
 
@@ -192,13 +194,9 @@ class HomeViewModel extends ChangeNotifier {
       _cachedAt = null;
       await _cache.writeFirstPage(page.items);
 
-      // Favorites live on a different endpoint. their success is independent
-      // of the property fetch. If offline, leave whatever we already have.
       try {
         _favoritePropertyIds = await _repository.getFavoritePropertyIds();
-      } on DioException {
-        // keep previous favorites in memory
-      }
+      } on DioException catch (_) {}
       notifyListeners();
     } on DioException catch (e) {
       if (_properties.isEmpty) {
@@ -228,8 +226,6 @@ class HomeViewModel extends ChangeNotifier {
       }
       _hasMore = next.hasMore;
     } on DioException {
-      // Offline or server error while paginating: stop trying to load more for
-      // this session; the user can retry by pulling-to-refresh (retryProperties).
       _hasMore = false;
     } finally {
       _isLoadingMore = false;
@@ -282,28 +278,39 @@ class HomeViewModel extends ChangeNotifier {
     try {
       final success = await _repository.toggleFavorite(propertyId);
       if (!success) {
-        if (wasFavorite) {
-          _favoritePropertyIds.add(propertyId);
-        } else {
-          _favoritePropertyIds.remove(propertyId);
-        }
-        notifyListeners();
+        _revertFavorite(propertyId, wasFavorite);
         return false;
       }
       return true;
-    } catch (_) {
-      if (wasFavorite) {
-        _favoritePropertyIds.add(propertyId);
-      } else {
-        _favoritePropertyIds.remove(propertyId);
+    } on DioException catch (e) {
+      if (_isOfflineError(e)) {
+        await _offlineQueue?.enqueueFavoriteToggle(propertyId: propertyId);
+        return true;
       }
-      notifyListeners();
+      _revertFavorite(propertyId, wasFavorite);
+      return false;
+    } catch (_) {
+      _revertFavorite(propertyId, wasFavorite);
       return false;
     } finally {
       _favoriteActionInFlight.remove(propertyId);
       notifyListeners();
     }
   }
+
+  void _revertFavorite(String propertyId, bool wasFavorite) {
+    if (wasFavorite) {
+      _favoritePropertyIds.add(propertyId);
+    } else {
+      _favoritePropertyIds.remove(propertyId);
+    }
+    notifyListeners();
+  }
+
+  bool _isOfflineError(DioException e) =>
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.error is SocketException;
 
   bool _matchesBudget(Property p) {
     switch (_budgetFilter) {
