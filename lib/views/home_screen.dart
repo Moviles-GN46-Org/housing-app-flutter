@@ -76,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final showLoading = homeVM.isLoading && !homeVM.hasProperties;
     final showError = homeVM.error != null && !homeVM.hasProperties;
     final showContent = !showLoading && !showError;
+    final filteredProperties = homeVM.filteredProperties;
 
     return Scaffold(
       backgroundColor: AppColors.linen,
@@ -259,20 +260,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               SearchController controller,
                             ) {
                               final vm = context.read<HomeViewModel>();
-                              final query = controller.text
-                                  .trim()
-                                  .toLowerCase();
-                              final neighborhoods =
-                                  vm.properties
-                                      .map((p) => p.neighborhood)
-                                      .toSet()
-                                      .where(
-                                        (n) =>
-                                            query.isEmpty ||
-                                            n.toLowerCase().contains(query),
-                                      )
-                                      .toList()
-                                    ..sort();
+                              final query = controller.text.trim();
+                              final neighborhoods = vm.neighborhoodSuggestions(
+                                query,
+                              );
                               return neighborhoods
                                   .map(
                                     (n) => ListTile(
@@ -358,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 if (homeVM.isFromCache)
                   _OfflineCacheBanner(cachedAt: homeVM.cachedAt),
-                if (homeVM.filteredProperties.isEmpty)
+                if (filteredProperties.isEmpty)
                   Expanded(
                     child: Center(
                       child: Text(
@@ -378,9 +369,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: ListView.builder(
                       controller: _listScrollController,
                       padding: const EdgeInsets.only(bottom: 110),
-                      itemCount: homeVM.filteredProperties.length + 1,
+                      itemCount: filteredProperties.length + 1,
                       itemBuilder: (context, index) {
-                        if (index == homeVM.filteredProperties.length) {
+                        if (index == filteredProperties.length) {
                           if (homeVM.isLoadingMore) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 16),
@@ -393,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           }
                           return const SizedBox.shrink();
                         }
-                        final property = homeVM.filteredProperties[index];
+                        final property = filteredProperties[index];
                         return PropertyCard(
                           property: property,
                           index: index,
@@ -1022,11 +1013,11 @@ class DropdownButtonBudget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeVM = context.watch<HomeViewModel>();
-    final dropdownValue = homeVM.budgetFilter.isEmpty
-        ? null
-        : homeVM.budgetFilter;
-    final bool hasSelection = homeVM.budgetFilter.isNotEmpty;
+    final selectedBudget = context.select<HomeViewModel, String>(
+      (vm) => vm.budgetFilter,
+    );
+    final dropdownValue = selectedBudget.isEmpty ? null : selectedBudget;
+    final bool hasSelection = selectedBudget.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1255,11 +1246,11 @@ class DropdownButtonUtilities extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeVM = context.watch<HomeViewModel>();
-    final dropdownValue = homeVM.utilitiesFilter.isEmpty
-        ? null
-        : homeVM.utilitiesFilter;
-    final bool hasSelection = homeVM.utilitiesFilter.isNotEmpty;
+    final selectedUtilities = context.select<HomeViewModel, String>(
+      (vm) => vm.utilitiesFilter,
+    );
+    final dropdownValue = selectedUtilities.isEmpty ? null : selectedUtilities;
+    final bool hasSelection = selectedUtilities.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1371,11 +1362,11 @@ class DropdownButtonAmenities extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeVM = context.watch<HomeViewModel>();
-    final dropdownValue = homeVM.amenitiesFilter.isEmpty
-        ? null
-        : homeVM.amenitiesFilter;
-    final bool hasSelection = homeVM.amenitiesFilter.isNotEmpty;
+    final selectedAmenities = context.select<HomeViewModel, String>(
+      (vm) => vm.amenitiesFilter,
+    );
+    final dropdownValue = selectedAmenities.isEmpty ? null : selectedAmenities;
+    final bool hasSelection = selectedAmenities.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
@@ -1489,11 +1480,11 @@ class DropdownButtonLocation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeVM = context.watch<HomeViewModel>();
-    final dropdownValue = homeVM.locationFilter.isEmpty
-        ? null
-        : homeVM.locationFilter;
-    final bool hasSelection = homeVM.locationFilter.isNotEmpty;
+    final selectedLocation = context.select<HomeViewModel, String>(
+      (vm) => vm.locationFilter,
+    );
+    final dropdownValue = selectedLocation.isEmpty ? null : selectedLocation;
+    final bool hasSelection = selectedLocation.isNotEmpty;
 
     return IntrinsicWidth(
       child: Container(
