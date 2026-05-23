@@ -73,14 +73,253 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
     final unreadNotifications = homeVM.unreadNotifications;
+    final showLoading = homeVM.isLoading && !homeVM.hasProperties;
+    final showError = homeVM.error != null && !homeVM.hasProperties;
+    final showContent = !showLoading && !showError;
 
     return Scaffold(
       backgroundColor: AppColors.linen,
-      body: homeVM.isLoading && !homeVM.hasProperties
+      appBar: showContent
+          ? AppBar(
+              title: const Text(
+                'Find your next home',
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fontFamily,
+                  fontSize: 20,
+                  color: AppColors.deepMocha,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              centerTitle: true,
+              titleSpacing: 0.0,
+              leadingWidth: 56.0,
+              scrolledUnderElevation: 0,
+              actions: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      LucideIcons.scan_line,
+                      color: AppColors.dustyTaupe,
+                      size: 30.0,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        PageRouteBuilder<void>(
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                          pageBuilder: (_, _, _) => const _InAppScannerView(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: PopupMenuButton<void>(
+                  padding: EdgeInsets.zero,
+                  color: Colors.transparent,
+                  elevation: 0,
+                  itemBuilder: (BuildContext context) {
+                    return <PopupMenuEntry<void>>[
+                      PopupMenuItem<void>(
+                        enabled: false,
+                        padding: EdgeInsets.zero,
+                        child: NotificationsDropdown(
+                          notifications: unreadNotifications,
+                        ),
+                      ),
+                    ];
+                  },
+                  icon: Badge.count(
+                    count: unreadNotifications.length,
+                    backgroundColor: AppColors.lightBronze,
+                    isLabelVisible: unreadNotifications.isNotEmpty,
+                    offset: const Offset(10, -6),
+                    padding: const EdgeInsets.all(2.0),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.white,
+                      fontFamily: AppTextStyles.fontFamily,
+                    ),
+                    child: const Icon(
+                      LucideIcons.bell,
+                      color: AppColors.dustyTaupe,
+                      size: 30.0,
+                    ),
+                  ),
+                ),
+              ),
+              backgroundColor: const Color(0xFFF7E6D5),
+              toolbarHeight: 184.0,
+              bottom: PreferredSize(
+                preferredSize: Size.fromHeight(0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: SearchAnchor(
+                        isFullScreen: false,
+                        viewBackgroundColor: AppColors.white,
+                        viewShape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(16.0)),
+                        ),
+                        viewConstraints: const BoxConstraints(minHeight: 0),
+                        builder:
+                            (
+                              BuildContext context,
+                              SearchController controller,
+                            ) {
+                              return DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  boxShadow: AppShadows.small,
+                                ),
+                                child: SearchBar(
+                                  controller: controller,
+                                  elevation:
+                                      const WidgetStatePropertyAll<double>(0.0),
+                                  padding:
+                                      const WidgetStatePropertyAll<EdgeInsets>(
+                                        EdgeInsets.symmetric(horizontal: 16.0),
+                                      ),
+                                  shape:
+                                      const WidgetStatePropertyAll<
+                                        OutlinedBorder
+                                      >(
+                                        RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(16.0),
+                                          ),
+                                        ),
+                                      ),
+                                  onTap: () {
+                                    controller.openView();
+                                  },
+                                  onChanged: (_) {
+                                    controller.openView();
+                                  },
+                                  leading: const Icon(
+                                    LucideIcons.search,
+                                    color: AppColors.dustyTaupe,
+                                    size: 20.0,
+                                  ),
+                                  hintText: 'Search by location, amenities...',
+                                  hintStyle:
+                                      const WidgetStatePropertyAll<TextStyle>(
+                                        TextStyle(
+                                          color: Color(0xFFB9A9A0),
+                                          fontWeight: FontWeight.w400,
+                                          fontSize: 16,
+                                          fontFamily: AppTextStyles.fontFamily,
+                                        ),
+                                      ),
+                                  constraints: const BoxConstraints(
+                                    minHeight: 56.0,
+                                    maxHeight: 80.0,
+                                  ),
+                                  backgroundColor:
+                                      const WidgetStatePropertyAll<Color?>(
+                                        AppColors.white,
+                                      ),
+                                  onSubmitted: (value) {
+                                    context
+                                        .read<HomeViewModel>()
+                                        .setSearchQuery(value);
+                                    controller.closeView(value);
+                                  },
+                                  trailing: homeVM.searchQuery.isNotEmpty
+                                      ? [
+                                          IconButton(
+                                            icon: const Icon(
+                                              LucideIcons.x,
+                                              size: 18,
+                                              color: AppColors.dustyTaupe,
+                                            ),
+                                            onPressed: () {
+                                              context
+                                                  .read<HomeViewModel>()
+                                                  .setSearchQuery('');
+                                              controller.clear();
+                                            },
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              );
+                            },
+                        suggestionsBuilder:
+                            (
+                              BuildContext context,
+                              SearchController controller,
+                            ) {
+                              final vm = context.read<HomeViewModel>();
+                              final query = controller.text
+                                  .trim()
+                                  .toLowerCase();
+                              final neighborhoods =
+                                  vm.properties
+                                      .map((p) => p.neighborhood)
+                                      .toSet()
+                                      .where(
+                                        (n) =>
+                                            query.isEmpty ||
+                                            n.toLowerCase().contains(query),
+                                      )
+                                      .toList()
+                                    ..sort();
+                              return neighborhoods
+                                  .map(
+                                    (n) => ListTile(
+                                      title: Text(
+                                        n,
+                                        style: const TextStyle(
+                                          fontFamily: AppTextStyles.fontFamily,
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        vm.setSearchQuery(n);
+                                        controller.closeView(n);
+                                      },
+                                    ),
+                                  )
+                                  .toList();
+                            },
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.only(
+                        left: 16.0,
+                        right: 16.0,
+                        top: 16.0,
+                        bottom: 16.0,
+                      ),
+                      child: Row(
+                        spacing: 10.0,
+                        children: <Widget>[
+                          const DropdownButtonBudget(),
+                          const DropdownButtonAmenities(),
+                          const DropdownButtonLocation(),
+                          const DropdownButtonUtilities(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
+      body: showLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.lightBronze),
             )
-          : homeVM.error != null && !homeVM.hasProperties
+          : showError
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -104,340 +343,85 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             )
-          : Center(
-              child: Scaffold(
-                appBar: AppBar(
-                  title: const Text(
-                    'Find your next home',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fontFamily,
-                      fontSize: 20,
-                      color: AppColors.deepMocha,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  centerTitle: true,
-                  titleSpacing: 0.0,
-                  leadingWidth: 56.0,
-                  scrolledUnderElevation: 0,
-                  actions: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12.0),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(
-                          LucideIcons.scan_line,
-                          color: AppColors.dustyTaupe,
-                          size: 30.0,
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            PageRouteBuilder<void>(
-                              transitionDuration: Duration.zero,
-                              reverseTransitionDuration: Duration.zero,
-                              pageBuilder: (_, _, _) =>
-                                  const _InAppScannerView(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                  leading: Padding(
-                    padding: const EdgeInsets.only(left: 12.0),
-                    child: PopupMenuButton<void>(
-                      padding: EdgeInsets.zero,
-                      color: Colors.transparent,
-                      elevation: 0,
-                      itemBuilder: (BuildContext context) {
-                        return <PopupMenuEntry<void>>[
-                          PopupMenuItem<void>(
-                            enabled: false,
-                            padding: EdgeInsets.zero,
-                            child: NotificationsDropdown(
-                              notifications: unreadNotifications,
-                            ),
-                          ),
-                        ];
-                      },
-                      icon: Badge.count(
-                        count: unreadNotifications.length,
-                        backgroundColor: AppColors.lightBronze,
-                        isLabelVisible: unreadNotifications.isNotEmpty,
-                        offset: const Offset(10, -6),
-                        padding: const EdgeInsets.all(2.0),
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.white,
-                          fontFamily: AppTextStyles.fontFamily,
-                        ),
-                        child: const Icon(
-                          LucideIcons.bell,
-                          color: AppColors.dustyTaupe,
-                          size: 30.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  backgroundColor: const Color(0xFFF7E6D5),
-                  toolbarHeight: 184.0,
-                  bottom: PreferredSize(
-                    preferredSize: Size.fromHeight(0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: SearchAnchor(
-                            isFullScreen: false,
-                            viewBackgroundColor: AppColors.white,
-                            viewShape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(16.0),
-                              ),
-                            ),
-                            viewConstraints: const BoxConstraints(minHeight: 0),
-                            builder:
-                                (
-                                  BuildContext context,
-                                  SearchController controller,
-                                ) {
-                                  return DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16.0),
-                                      boxShadow: AppShadows.small,
-                                    ),
-                                    child: SearchBar(
-                                      controller: controller,
-                                      elevation:
-                                          const WidgetStatePropertyAll<double>(
-                                            0.0,
-                                          ),
-                                      padding:
-                                          const WidgetStatePropertyAll<
-                                            EdgeInsets
-                                          >(
-                                            EdgeInsets.symmetric(
-                                              horizontal: 16.0,
-                                            ),
-                                          ),
-                                      shape:
-                                          const WidgetStatePropertyAll<
-                                            OutlinedBorder
-                                          >(
-                                            RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.all(
-                                                Radius.circular(16.0),
-                                              ),
-                                            ),
-                                          ),
-                                      onTap: () {
-                                        controller.openView();
-                                      },
-                                      onChanged: (_) {
-                                        controller.openView();
-                                      },
-                                      leading: const Icon(
-                                        LucideIcons.search,
-                                        color: AppColors.dustyTaupe,
-                                        size: 20.0,
-                                      ),
-                                      hintText:
-                                          'Search by location, amenities...',
-                                      hintStyle:
-                                          const WidgetStatePropertyAll<
-                                            TextStyle
-                                          >(
-                                            TextStyle(
-                                              color: Color(0xFFB9A9A0),
-                                              fontWeight: FontWeight.w400,
-                                              fontSize: 16,
-                                              fontFamily:
-                                                  AppTextStyles.fontFamily,
-                                            ),
-                                          ),
-                                      constraints: const BoxConstraints(
-                                        minHeight: 56.0,
-                                        maxHeight: 80.0,
-                                      ),
-                                      backgroundColor:
-                                          const WidgetStatePropertyAll<Color?>(
-                                            AppColors.white,
-                                          ),
-                                      onSubmitted: (value) {
-                                        context
-                                            .read<HomeViewModel>()
-                                            .setSearchQuery(value);
-                                        controller.closeView(value);
-                                      },
-                                      trailing: homeVM.searchQuery.isNotEmpty
-                                          ? [
-                                              IconButton(
-                                                icon: const Icon(
-                                                  LucideIcons.x,
-                                                  size: 18,
-                                                  color: AppColors.dustyTaupe,
-                                                ),
-                                                onPressed: () {
-                                                  context
-                                                      .read<HomeViewModel>()
-                                                      .setSearchQuery('');
-                                                  controller.clear();
-                                                },
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                  );
-                                },
-                            suggestionsBuilder:
-                                (
-                                  BuildContext context,
-                                  SearchController controller,
-                                ) {
-                                  final vm = context.read<HomeViewModel>();
-                                  final query = controller.text
-                                      .trim()
-                                      .toLowerCase();
-                                  final neighborhoods =
-                                      vm.properties
-                                          .map((p) => p.neighborhood)
-                                          .toSet()
-                                          .where(
-                                            (n) =>
-                                                query.isEmpty ||
-                                                n.toLowerCase().contains(query),
-                                          )
-                                          .toList()
-                                        ..sort();
-                                  return neighborhoods
-                                      .map(
-                                        (n) => ListTile(
-                                          title: Text(
-                                            n,
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  AppTextStyles.fontFamily,
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            vm.setSearchQuery(n);
-                                            controller.closeView(n);
-                                          },
-                                        ),
-                                      )
-                                      .toList();
-                                },
-                          ),
-                        ),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.only(
-                            left: 16.0,
-                            right: 16.0,
-                            top: 16.0,
-                            bottom: 16.0,
-                          ),
-                          child: Row(
-                            spacing: 10.0,
-                            children: <Widget>[
-                              const DropdownButtonBudget(),
-                              const DropdownButtonAmenities(),
-                              const DropdownButtonLocation(),
-                              const DropdownButtonUtilities(),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          : homeVM.properties.isEmpty
+          ? const Center(
+              child: Text(
+                'No listings found',
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fontFamily,
+                  fontSize: 16,
+                  color: AppColors.textMuted,
                 ),
-                body: homeVM.properties.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No listings found',
-                          style: TextStyle(
-                            fontFamily: AppTextStyles.fontFamily,
-                            fontSize: 16,
-                            color: AppColors.textMuted,
-                          ),
+              ),
+            )
+          : Column(
+              children: [
+                if (homeVM.isFromCache)
+                  _OfflineCacheBanner(cachedAt: homeVM.cachedAt),
+                if (homeVM.filteredProperties.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        homeVM.searchQuery.isNotEmpty
+                            ? 'No listings match "${homeVM.searchQuery}"'
+                            : 'No listings match the active filters',
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fontFamily,
+                          fontSize: 16,
+                          color: AppColors.textMuted,
                         ),
-                      )
-                    : Column(
-                        children: [
-                          if (homeVM.isFromCache)
-                            _OfflineCacheBanner(cachedAt: homeVM.cachedAt),
-                          if (homeVM.filteredProperties.isEmpty)
-                            Expanded(
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _listScrollController,
+                      padding: const EdgeInsets.only(bottom: 110),
+                      itemCount: homeVM.filteredProperties.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == homeVM.filteredProperties.length) {
+                          if (homeVM.isLoadingMore) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
                               child: Center(
-                                child: Text(
-                                  homeVM.searchQuery.isNotEmpty
-                                      ? 'No listings match "${homeVM.searchQuery}"'
-                                      : 'No listings match the active filters',
-                                  style: const TextStyle(
-                                    fontFamily: AppTextStyles.fontFamily,
-                                    fontSize: 16,
-                                    color: AppColors.textMuted,
-                                  ),
+                                child: CircularProgressIndicator(
+                                  color: AppColors.lightBronze,
                                 ),
                               ),
-                            )
-                          else
-                            Expanded(
-                              child: ListView.builder(
-                                controller: _listScrollController,
-                                padding: const EdgeInsets.only(bottom: 110),
-
-                                itemCount: homeVM.filteredProperties.length + 1,
-                                itemBuilder: (context, index) {
-                                  if (index ==
-                                      homeVM.filteredProperties.length) {
-                                    if (homeVM.isLoadingMore) {
-                                      return const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        child: Center(
-                                          child: CircularProgressIndicator(
-                                            color: AppColors.lightBronze,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  }
-                                  final property =
-                                      homeVM.filteredProperties[index];
-                                  return PropertyCard(
-                                    property: property,
-                                    index: index,
-                                    isFavorite: homeVM.isFavorite(property.id),
-                                    isFavoriteLoading: homeVM
-                                        .isFavoriteActionInFlight(property.id),
-                                    onFavoriteTap: () async {
-                                      final success = await homeVM
-                                          .toggleFavorite(property.id);
-                                      if (!success && context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                          ..hideCurrentSnackBar()
-                                          ..showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Unable to update favorite right now',
-                                              ),
-                                            ),
-                                          );
-                                      }
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
-              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }
+                        final property = homeVM.filteredProperties[index];
+                        return PropertyCard(
+                          property: property,
+                          index: index,
+                          isFavorite: homeVM.isFavorite(property.id),
+                          isFavoriteLoading: homeVM.isFavoriteActionInFlight(
+                            property.id,
+                          ),
+                          onFavoriteTap: () async {
+                            final success = await homeVM.toggleFavorite(
+                              property.id,
+                            );
+                            if (!success && context.mounted) {
+                              ScaffoldMessenger.of(context)
+                                ..hideCurrentSnackBar()
+                                ..showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Unable to update favorite right now',
+                                    ),
+                                  ),
+                                );
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
     );
   }
