@@ -19,8 +19,11 @@ import 'views/auth/verify_email_screen.dart';
 import 'views/main_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:housing_app_flutter/models/local_event.dart';
+import 'package:flutter/rendering.dart';
 
 void main() async {
+  debugRepaintRainbowEnabled = true;
+
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
@@ -116,6 +119,7 @@ class UniHousingApp extends StatelessWidget {
     return MaterialApp(
       title: 'UniHousing',
       debugShowCheckedModeBanner: false,
+      showPerformanceOverlay: false,
       theme: ThemeData(
         fontFamily: 'Instrument Sans',
         scaffoldBackgroundColor: AppColors.background,
