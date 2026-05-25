@@ -136,17 +136,20 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildStatItem(String label, String value, IconData icon) {
-    return Expanded(
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.primary.withOpacity(0.6)),
-          const SizedBox(width: 8),
-          Column(
+  return Expanded(
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.primary.withOpacity(0.6)),
+        const SizedBox(width: 8),
+        Expanded( // <--- ENVOLVEMOS EL COLUMN EN OTRO EXPANDED
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
                 style: const TextStyle(color: Colors.grey, fontSize: 10),
+                overflow: TextOverflow.ellipsis, // <--- CORTA EL TEXTO SI ES MUY LARGO
+                maxLines: 1,
               ),
               Text(
                 value,
@@ -155,13 +158,16 @@ class _MapScreenState extends State<MapScreen> {
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
+                overflow: TextOverflow.ellipsis, // <--- CORTA EL TEXTO SI ES MUY LARGO
+                maxLines: 1,
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildHeader(Color color) {
     return Positioned(
@@ -209,7 +215,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildInsightCard(MapViewModel vm, Color color) {
+Widget _buildInsightCard(MapViewModel vm, Color color) {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 70,
       left: 20,
@@ -248,15 +254,21 @@ class _MapScreenState extends State<MapScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStatItem(
-                        "Renta Promedio",
-                        vm.averageRentFormatted,
-                        LucideIcons.banknote,
+                      // Envolvemos ambos items en Expanded para repartir el ancho
+                      Expanded(
+                        child: _buildStatItem(
+                          "Renta Promedio",
+                          vm.averageRentFormatted,
+                          LucideIcons.banknote,
+                        ),
                       ),
-                      _buildStatItem(
-                        "Densidad Oferta",
-                        vm.supplyDensityFormatted,
-                        LucideIcons.layers,
+                      const SizedBox(width: 12), // Espacio entre items
+                      Expanded(
+                        child: _buildStatItem(
+                          "Densidad Oferta",
+                          vm.supplyDensityFormatted,
+                          LucideIcons.layers,
+                        ),
                       ),
                     ],
                   ),
