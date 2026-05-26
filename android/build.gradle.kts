@@ -5,16 +5,33 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+rootProject.layout.buildDirectory.set(file("../build"))
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    //  fix for verifyReleaseResources
+    afterEvaluate {
+        if (plugins.hasPlugin("com.android.application") ||
+            plugins.hasPlugin("com.android.library")) {
+            extensions.findByName("android")?.let { ext ->
+                val android = ext as com.android.build.gradle.BaseExtension
+                android.compileSdkVersion(36)
+                android.buildToolsVersion("36.0.0")
+            }
+        }
+        if (hasProperty("android")) {
+            extensions.findByName("android")?.let { ext ->
+                val android = ext as com.android.build.gradle.BaseExtension
+                if (android.namespace == null) {
+                    android.namespace = group.toString()
+                }
+            }
+        }
+    }
+    // ===============================
+
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir(name))
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
