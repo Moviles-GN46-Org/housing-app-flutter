@@ -130,6 +130,46 @@ class _MapScreenState extends State<MapScreen> {
           _buildDraggableSheet(mapViewModel, darkColor),
 
           if (mapViewModel.isLoading) _buildLoadingOverlay(),
+
+          if (mapViewModel.isOffline)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 60, 
+              left: 20,
+              right: 20,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
+                opacity: mapViewModel.isOffline ? 1.0 : 0.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.shade700,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26, 
+                        blurRadius: 4, 
+                        offset: Offset(0, 2),
+                      )
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        "Offline mode - Connection lost",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

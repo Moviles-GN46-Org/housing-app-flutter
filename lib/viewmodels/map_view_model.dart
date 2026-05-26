@@ -1,14 +1,24 @@
+import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/property_model.dart';
 import '../repositories/property_repository.dart';
-import '../services/analytics_service.dart'; 
+import '../services/analytics_service.dart';
+import '../services/property_cache_service.dart'; 
+
 class MapViewModel extends ChangeNotifier {
   final PropertyRepository _propertyRepository;
-  final AnalyticsService _analyticsService; 
+  final AnalyticsService _analyticsService;
+  
 
-  MapViewModel(this._propertyRepository, this._analyticsService);
+  final PropertyCacheService _cacheService = PropertyCacheService();
+  StreamSubscription? _connectivitySubscription;
+
+  MapViewModel(this._propertyRepository, this._analyticsService) {
+    _initConnectivityListener(); 
+  }
 
   List<Property> _allProperties = [];
   List<Property> _filteredProperties = [];
@@ -21,6 +31,32 @@ class MapViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
 
+  bool _isOffline = false;
+  bool get isOffline => _isOffline;
+
+
+  void _initConnectivityListener() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+      bool wasOffline = _isOffline;
+      _isOffline = result.contains(ConnectivityResult.none);
+      
+
+      if (wasOffline != _isOffline) {
+        notifyListeners();
+
+        if (!_isOffline && _allProperties.isEmpty) {
+          initializeMap();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel(); 
+    super.dispose();
+  }
+
   String get averageRentFormatted {
     if (_filteredProperties.isEmpty) return "No hay ofertas cerca";
     double total = _filteredProperties.fold(
@@ -30,7 +66,6 @@ class MapViewModel extends ChangeNotifier {
     double avg = total / _filteredProperties.length;
     return "\$${(avg / 1000000).toStringAsFixed(2)}M COP";
   }
-
 
   double get supplyDensity {
     if (_allProperties.isEmpty) return 0.0;
@@ -46,22 +81,38 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-
       Position position = await _determinePosition();
       _userLocation = LatLng(position.latitude, position.longitude);
 
+      if (!_isOffline) {
+        await _analyticsService.logLocationBQ(position.latitude, position.longitude);
+      }
 
-      await _analyticsService.logLocationBQ(position.latitude, position.longitude);
 
+      var conn = await Connectivity().checkConnectivity();
+      if (conn.contains(ConnectivityResult.none)) {
+        _isOffline = true;
 
-      _allProperties = await _propertyRepository.getProperties();
+        _allProperties = await _cacheService.readFirstPage() ?? [];
+        debugPrint("Mapa cargado desde el caché local");
+      } else {
+        _isOffline = false;
+
+        _allProperties = await _propertyRepository.getProperties();
+      }
+
       _filterPropertiesByDistance();
       
-
-      await _logSupplyDensityAnalytics();
+      if (!_isOffline) {
+        await _logSupplyDensityAnalytics();
+      }
 
     } catch (e) {
       debugPrint("Error initializing map: $e");
+
+      _isOffline = true;
+      _allProperties = await _cacheService.readFirstPage() ?? [];
+      _filterPropertiesByDistance();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -70,7 +121,6 @@ class MapViewModel extends ChangeNotifier {
 
   void _filterPropertiesByDistance() {
     if (_userLocation == null) return;
-
     final Distance distance = const Distance();
     
     _filteredProperties = _allProperties.where((p) {
@@ -79,7 +129,7 @@ class MapViewModel extends ChangeNotifier {
         _userLocation!,
         LatLng(p.latitude, p.longitude),
       );
-      return km <= 1.0; 
+      return km <= 25.0; 
     }).toList();
   }
 
