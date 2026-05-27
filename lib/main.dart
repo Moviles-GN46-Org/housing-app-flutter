@@ -22,7 +22,7 @@ import 'package:housing_app_flutter/models/local_event.dart';
 import 'package:flutter/rendering.dart';
 
 void main() async {
-  debugRepaintRainbowEnabled = true;
+  debugRepaintRainbowEnabled = false;
 
   WidgetsFlutterBinding.ensureInitialized();
 
