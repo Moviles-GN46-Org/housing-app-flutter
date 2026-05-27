@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/analytics_service.dart';
 import 'services/api_client.dart';
+import 'services/filter_prefs_service.dart';
 import 'services/offline_queue_service.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/notification_repository.dart';
@@ -23,14 +24,20 @@ import 'package:housing_app_flutter/models/local_event.dart';
 import 'package:flutter/rendering.dart';
 
 void main() async {
-  debugRepaintRainbowEnabled = true;
+  debugRepaintRainbowEnabled = false;
 
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
   Hive.registerAdapter(LocalEventAdapter());
   await Hive.openBox<LocalEvent>('pending_locations');
+  
+
   await Hive.openBox('chat_cache'); 
+  await Hive.openBox('filter_prefs'); 
+
+  final filterPrefsService = FilterPrefsService(Hive.box('filter_prefs'));
+
 
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
@@ -79,6 +86,7 @@ void main() async {
             notificationRepository,
             analyticsService: analyticsService,
             offlineQueue: offlineQueueService,
+            filterPrefs: filterPrefsService,
           ),
         ),
         ChangeNotifierProxyProvider<HomeViewModel, MainPageViewModel>(

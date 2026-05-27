@@ -5,9 +5,6 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../models/user.dart';
 
-// Caches the currently-authenticated user so the app can hydrate the session
-// offline. Uses a dedicated CacheManager so eviction/TTL on the user record
-// never interferes with other caches (property data, images, etc.).
 class UserCacheService {
   static final CacheManager _manager = CacheManager(
     Config(

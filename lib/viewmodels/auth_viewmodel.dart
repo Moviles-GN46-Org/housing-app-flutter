@@ -22,8 +22,6 @@ class AuthViewModel extends ChangeNotifier {
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
 
-  /// True only while [checkAuthStatus] is running (the initial startup check).
-  /// Use this in the auth gate so the login screen stays mounted during login.
   bool get isCheckingStatus => _isCheckingStatus;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
@@ -88,9 +86,6 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
-    // No stored token, or it's expired and unrecoverable without the network.
-    // AuthGate will route to the login screen; any attempt to log in offline
-    // is blocked by the ApiClient connectivity interceptor.
     if (!await StorageService.hasValidAccessToken()) {
       return;
     }
@@ -104,12 +99,8 @@ class AuthViewModel extends ChangeNotifier {
       await _userCache.write(fresh);
     } on DioException catch (e) {
       if (_isOfflineError(e)) {
-        // Offline with a still-valid token: trust what we have on disk.
-        // The cached user gives us names/email; the JWT claims are the
-        // fallback for a first-offline-open with no cache yet.
         _currentUser = await _userCache.read() ?? await _userFromTokenClaims();
       } else {
-        // A real auth failure (401, 403, etc.) — cached session is invalid.
         await StorageService.clearTokens();
         await _userCache.clear();
       }
@@ -128,10 +119,6 @@ class AuthViewModel extends ChangeNotifier {
         e.error is SocketException;
   }
 
-  // Last-resort user hydration when we have a valid JWT but no cached `User`
-  // yet (e.g. app updated and lost cache, but token is still live). The JWT
-  // only carries { userId, role, isVerified }, so names/email are empty
-  // until the next successful getMe() refreshes the cache.
   Future<User?> _userFromTokenClaims() async {
     final payload = await StorageService.decodeAccessTokenPayload();
     if (payload == null) return null;

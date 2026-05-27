@@ -509,6 +509,7 @@ class _InAppScannerViewState extends State<_InAppScannerView> {
         .timeout(const Duration(seconds: 15), onTimeout: () => null);
 
     _controller.stop().then((_) async {
+      // S3: Future with then handler + async/await
       await Future.delayed(const Duration(milliseconds: 500));
       nav.pop();
       if (nav.mounted) {
@@ -580,6 +581,7 @@ class _ScanResultDialogState extends State<_ScanResultDialog> {
   void initState() {
     super.initState();
     widget.fetchFuture.then((p) {
+      // S3: Future with then handler (no async/await)
       if (!mounted) return;
       setState(() {
         _loading = false;

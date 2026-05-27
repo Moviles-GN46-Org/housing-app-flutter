@@ -98,6 +98,7 @@ class MainPageViewModel extends ChangeNotifier {
     );
 
     _positionSubscription = Geolocator.getPositionStream(
+      // S3: Stream
       locationSettings: locationSettings,
     ).listen(_onPositionUpdate);
   }

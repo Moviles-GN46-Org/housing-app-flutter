@@ -9,6 +9,7 @@ import '../models/property_model.dart';
 import '../repositories/notification_repository.dart';
 import '../repositories/property_repository.dart';
 import '../services/analytics_service.dart';
+import '../services/filter_prefs_service.dart';
 import '../services/offline_queue_service.dart';
 import '../services/property_cache_service.dart';
 
@@ -18,6 +19,7 @@ class HomeViewModel extends ChangeNotifier {
   final PropertyCacheService _cache;
   final AnalyticsService? _analyticsService;
   final OfflineQueueService? _offlineQueue;
+  final FilterPrefsService? _filterPrefs;
 
   HomeViewModel(
     this._repository,
@@ -25,9 +27,18 @@ class HomeViewModel extends ChangeNotifier {
     PropertyCacheService? cache,
     AnalyticsService? analyticsService,
     OfflineQueueService? offlineQueue,
+    FilterPrefsService? filterPrefs,
   }) : _cache = cache ?? PropertyCacheService(),
        _analyticsService = analyticsService,
-       _offlineQueue = offlineQueue;
+       _offlineQueue = offlineQueue,
+       _filterPrefs = filterPrefs {
+    if (filterPrefs != null) {
+      _budgetFilter = filterPrefs.budget;
+      _amenitiesFilter = filterPrefs.amenities;
+      _locationFilter = filterPrefs.location;
+      _utilitiesFilter = filterPrefs.utilities;
+    }
+  }
 
   static const int _pageSize = 10;
 
@@ -155,7 +166,9 @@ class HomeViewModel extends ChangeNotifier {
         .toList(growable: false);
   }
 
-  Future<Property?> fetchPropertyById(String id) =>
+  Future<Property?> fetchPropertyById(
+    String id,
+  ) => // S3: Future (no handler, no async await)
       _repository.getPropertyById(id);
 
   bool isFavorite(String propertyId) =>
@@ -180,6 +193,7 @@ class HomeViewModel extends ChangeNotifier {
         {'category': 'budget', 'value': value},
       ]);
     }
+    _saveFilterPrefs();
     notifyListeners();
   }
 
@@ -192,6 +206,7 @@ class HomeViewModel extends ChangeNotifier {
         {'category': 'amenities', 'value': value},
       ]);
     }
+    _saveFilterPrefs();
     notifyListeners();
   }
 
@@ -204,6 +219,7 @@ class HomeViewModel extends ChangeNotifier {
         {'category': 'location', 'value': value},
       ]);
     }
+    _saveFilterPrefs();
     notifyListeners();
   }
 
@@ -216,7 +232,17 @@ class HomeViewModel extends ChangeNotifier {
         {'category': 'utilities', 'value': value},
       ]);
     }
+    _saveFilterPrefs();
     notifyListeners();
+  }
+
+  void _saveFilterPrefs() {
+    _filterPrefs?.save(
+      budget: _budgetFilter,
+      amenities: _amenitiesFilter,
+      location: _locationFilter,
+      utilities: _utilitiesFilter,
+    );
   }
 
   Future<void> fetchProperties() async {
