@@ -7,6 +7,7 @@ import 'services/offline_queue_service.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/notification_repository.dart';
 import 'repositories/property_repository.dart';
+import 'repositories/chat_repository.dart'; 
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
@@ -29,15 +30,18 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(LocalEventAdapter());
   await Hive.openBox<LocalEvent>('pending_locations');
+  await Hive.openBox('chat_cache'); 
 
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
   final notificationRepository = NotificationRepository(apiClient);
+  final chatRepository = ChatRepository(apiClient); 
 
   final analyticsService = AnalyticsService(apiClient);
   final offlineQueueService = OfflineQueueService(
     propertyRepository: propertyRepository,
+    chatRepository: chatRepository, 
   );
   await offlineQueueService.init();
 
@@ -64,6 +68,7 @@ void main() async {
       providers: [
         Provider<AnalyticsService>.value(value: analyticsService),
         Provider<PropertyRepository>.value(value: propertyRepository),
+        Provider<ChatRepository>.value(value: chatRepository), 
         ChangeNotifierProvider<OfflineQueueService>.value(
           value: offlineQueueService,
         ),

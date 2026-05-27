@@ -10,12 +10,17 @@ import 'package:uuid/uuid.dart';
 
 import '../models/offline_action.dart';
 import '../repositories/property_repository.dart';
+import '../repositories/chat_repository.dart'; 
 
 class OfflineQueueService extends ChangeNotifier {
-  OfflineQueueService({required PropertyRepository propertyRepository})
-    : _propertyRepository = propertyRepository;
+  OfflineQueueService({
+    required PropertyRepository propertyRepository,
+    required ChatRepository chatRepository, 
+  })  : _propertyRepository = propertyRepository,
+        _chatRepository = chatRepository;
 
   final PropertyRepository _propertyRepository;
+  final ChatRepository _chatRepository;
 
   static const _manifestKey = 'offline_queue_manifest';
   static const _maxAttempts = 5;
@@ -100,6 +105,20 @@ class OfflineQueueService extends ChangeNotifier {
     await _enqueue(action);
   }
 
+  /// Encola un mensaje de chat para enviarlo de forma eventual al recuperar conexión
+  Future<void> enqueueMessage({
+    required String chatId,
+    required String content,
+  }) async {
+    final action = OfflineAction(
+      id: _uuid.v4(),
+      type: OfflineActionType.sendMessage,
+      payload: {'chatId': chatId, 'content': content},
+      queuedAt: DateTime.now(),
+    );
+    await _enqueue(action);
+  }
+
   Future<void> flush() async {
     if (_isProcessing || _queue.isEmpty) return;
     _isProcessing = true;
@@ -124,12 +143,22 @@ class OfflineQueueService extends ChangeNotifier {
             comment: action.payload['comment'] as String,
           );
           await _dequeue(action.id);
+          break;
 
         case OfflineActionType.toggleFavorite:
           await _propertyRepository.toggleFavorite(
             action.payload['propertyId'] as String,
           );
           await _dequeue(action.id);
+          break;
+
+        case OfflineActionType.sendMessage:
+          await _chatRepository.sendMessage(
+            action.payload['chatId'] as String,
+            action.payload['content'] as String,
+          );
+          await _dequeue(action.id);
+          break;
       }
       return true;
     } on DioException catch (e) {

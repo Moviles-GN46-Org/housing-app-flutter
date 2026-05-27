@@ -4,6 +4,13 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+
+// --- NUEVAS IMPORTACIONES PARA EL CHAT ---
+import '../repositories/chat_repository.dart';
+import '../viewmodels/auth_viewmodel.dart';
+import 'chat_screen.dart';
+// -----------------------------------------
+
 import '../services/analytics_service.dart';
 import '../viewmodels/map_view_model.dart';
 import '../models/property_model.dart';
@@ -35,10 +42,6 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // void _crashApp() {
-  //   throw StateError('Intentional crash from Map Search for demo');
-  // }
-
   String _formatPriceMillions(double rentInPesos) {
     final millions = rentInPesos / 1000000;
     final str = millions.toStringAsFixed(1);
@@ -61,6 +64,56 @@ class _MapScreenState extends State<MapScreen> {
         targetOffset.clamp(0.0, controller.position.maxScrollExtent),
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  // =======================================================================
+  // NUEVA FUNCIÓN: Lógica para abrir el chat al presionar el botón
+  // =======================================================================
+  Future<void> _openChat(Property property) async {
+    final authVM = context.read<AuthViewModel>();
+    final currentUserId = authVM.currentUser?.id;
+
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes iniciar sesión para contactar al arrendador.')),
+      );
+      return;
+    }
+
+    // Muestra un indicador de carga mientras el backend crea el chat
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+
+    try {
+      final chatRepo = context.read<ChatRepository>();
+      final chatId = await chatRepo.startChat(property.id);
+
+      if (!mounted) return;
+      Navigator.pop(context); // Cierra el loading
+
+      // Navega a la pantalla que creamos antes
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            chatId: chatId,
+            currentUserId: currentUserId,
+            propertyTitle: property.title,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cierra el loading
+      
+      // Nota: Si el usuario no está verificado, tu backend mandará error. 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el chat. Verifica tu conexión o tu estado de verificación.')),
       );
     }
   }
@@ -176,38 +229,38 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildStatItem(String label, String value, IconData icon) {
-  return Expanded(
-    child: Row(
-      children: [
-        Icon(icon, size: 16, color: AppColors.primary.withOpacity(0.6)),
-        const SizedBox(width: 8),
-        Expanded( // <--- ENVOLVEMOS EL COLUMN EN OTRO EXPANDED
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.grey, fontSize: 10),
-                overflow: TextOverflow.ellipsis, // <--- CORTA EL TEXTO SI ES MUY LARGO
-                maxLines: 1,
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppColors.deepMocha,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary.withOpacity(0.6)),
+          const SizedBox(width: 8),
+          Expanded( 
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                  overflow: TextOverflow.ellipsis, 
+                  maxLines: 1,
                 ),
-                overflow: TextOverflow.ellipsis, // <--- CORTA EL TEXTO SI ES MUY LARGO
-                maxLines: 1,
-              ),
-            ],
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.deepMocha,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis, 
+                  maxLines: 1,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildHeader(Color color) {
     return Positioned(
@@ -228,10 +281,10 @@ class _MapScreenState extends State<MapScreen> {
             bottomRight: Radius.circular(24),
           ),
         ),
-        child: Stack(
+        child: const Stack(
           alignment: Alignment.center,
           children: [
-            const Text(
+            Text(
               'Listings near you',
               style: TextStyle(
                 color: Colors.white,
@@ -239,23 +292,13 @@ class _MapScreenState extends State<MapScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            // Positioned(
-            //   right: 0,
-            //   child: IconButton(
-            //     padding: EdgeInsets.zero,
-            //     constraints: const BoxConstraints(),
-            //     tooltip: 'Crash app (demo)',
-            //     onPressed: _crashApp,
-            //     icon: const Icon(LucideIcons.bug, color: Colors.white),
-            //   ),
-            // ),
           ],
         ),
       ),
     );
   }
 
-Widget _buildInsightCard(MapViewModel vm, Color color) {
+  Widget _buildInsightCard(MapViewModel vm, Color color) {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 70,
       left: 20,
@@ -294,7 +337,6 @@ Widget _buildInsightCard(MapViewModel vm, Color color) {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Envolvemos ambos items en Expanded para repartir el ancho
                       Expanded(
                         child: _buildStatItem(
                           "Renta Promedio",
@@ -302,7 +344,7 @@ Widget _buildInsightCard(MapViewModel vm, Color color) {
                           LucideIcons.banknote,
                         ),
                       ),
-                      const SizedBox(width: 12), // Espacio entre items
+                      const SizedBox(width: 12), 
                       Expanded(
                         child: _buildStatItem(
                           "Densidad Oferta",
@@ -399,8 +441,8 @@ Widget _buildInsightCard(MapViewModel vm, Color color) {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
             itemCount: vm.properties.length + 1,
             itemBuilder: (context, index) {
-              if (index == 0)
-                return _buildSheetHandle(handleColor, vm.properties.length);
+              if (index == 0) return _buildSheetHandle(handleColor, vm.properties.length);
+              
               final property = vm.properties[index - 1];
               return _buildPropertyCard(
                 property,
@@ -434,6 +476,9 @@ Widget _buildInsightCard(MapViewModel vm, Color color) {
     );
   }
 
+  // =======================================================================
+  // AQUÍ FUE DONDE INYECTAMOS EL BOTÓN DE CHAT
+  // =======================================================================
   Widget _buildPropertyCard(Property p, {bool isSelected = false}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -502,6 +547,21 @@ Widget _buildInsightCard(MapViewModel vm, Color color) {
               ],
             ),
           ),
+          
+          // --- NUEVO BOTÓN DE CHAT ---
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.lightBronze.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(LucideIcons.message_circle, color: AppColors.lightBronze, size: 22),
+              tooltip: 'Contactar arrendador',
+              onPressed: () => _openChat(p), // Llama a la función que navega
+            ),
+          ),
+          // ---------------------------
         ],
       ),
     );
@@ -542,7 +602,7 @@ class _MarkerTailPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
-      Offset(0, 0),
+      const Offset(0, 0),
       Offset(size.width / 2, size.height),
       edgePaint,
     );

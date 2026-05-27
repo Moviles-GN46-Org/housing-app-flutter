@@ -1,4 +1,4 @@
-enum OfflineActionType { submitReview, toggleFavorite }
+enum OfflineActionType { submitReview, toggleFavorite, sendMessage }
 
 class OfflineAction {
   final String id;
