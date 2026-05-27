@@ -5,10 +5,6 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../models/property_model.dart';
 
-// Caches the first page of Home properties as a single JSON blob so the user
-// can see something on launch even without a network connection. A dedicated
-// CacheManager keeps TTL/eviction isolated from the user cache and from image
-// caching done by cached_network_image.
 class PropertyCacheService {
   static final CacheManager _manager = CacheManager(
     Config(
