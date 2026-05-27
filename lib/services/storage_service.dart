@@ -29,12 +29,6 @@ class StorageService {
     await _storage.delete(key: _refreshTokenKey);
   }
 
-  // A JWT is three base64url-encoded strings separated by dots:
-  //   header.payload.signature
-  // Only the backend can verify the signature (it holds the key), but the
-  // payload is readable by anyone — that's by design. We only need `exp` to
-  // decide locally whether the token is still valid, so we never touch the
-  // signature.
   static Future<Map<String, dynamic>?> decodeAccessTokenPayload() async {
     final token = await getAccessToken();
     if (token == null) return null;
@@ -43,7 +37,6 @@ class StorageService {
     if (parts.length != 3) return null;
 
     try {
-      // base64Url.normalize adds the '=' padding that JWTs strip out.
       final decoded = utf8.decode(
         base64Url.decode(base64Url.normalize(parts[1])),
       );
