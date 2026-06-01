@@ -59,6 +59,7 @@ class HomeViewModel extends ChangeNotifier {
   String _locationFilter = '';
   String _utilitiesFilter = '';
   Timer? _notificationsPollingTimer;
+  Timer? _searchDebounce;
   List<Property>? _sortedPropertiesCache;
   List<Property>? _filteredPropertiesCache;
   List<String>? _sortedNeighborhoodsCache;
@@ -182,6 +183,13 @@ class HomeViewModel extends ChangeNotifier {
     _searchQuery = normalized;
     _markFilteredCacheDirty();
     notifyListeners();
+
+    _searchDebounce?.cancel();
+    if (normalized.isNotEmpty) {
+      _searchDebounce = Timer(const Duration(milliseconds: 600), () {
+        _analyticsService?.logSearchQuery(normalized);
+      });
+    }
   }
 
   void setBudgetFilter(String value) {
@@ -466,6 +474,7 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     stopNotificationsPolling();
     super.dispose();
   }

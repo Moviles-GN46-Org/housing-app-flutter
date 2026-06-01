@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'api_client.dart';
 import '../models/local_event.dart';
+import '../models/searches_by_month_model.dart';
 import 'local_db_service.dart';
 
 class ScreenName {
@@ -123,6 +124,46 @@ class AnalyticsService {
     await _localDb.saveLocationEvent(event);
 
     await syncAllPendingEvents();
+  }
+
+  Future<void> logSearchQuery(String query) async {
+    if (_sessionId == null) return;
+    try {
+      await _apiClient.post(
+        '/analytics/events',
+        data: {
+          'sessionId': _sessionId,
+          'eventType': 'SEARCH_QUERY',
+          'screenName': currentScreen ?? ScreenName.home,
+          'payload': {'query': query},
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to log search query: $e');
+    }
+  }
+
+  Future<List<MonthlySearchCount>> fetchSearchesByMonth({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (from != null) queryParams['from'] = from.toUtc().toIso8601String();
+      if (to != null) queryParams['to'] = to.toUtc().toIso8601String();
+
+      final response = await _apiClient.get(
+        '/analytics/searches-by-month',
+        queryParams: queryParams.isEmpty ? null : queryParams,
+      );
+
+      final data =
+          (response.data['data'] as List).cast<Map<String, dynamic>>();
+      return data.map(MonthlySearchCount.fromJson).toList();
+    } catch (e) {
+      debugPrint('Failed to fetch searches by month: $e');
+      rethrow;
+    }
   }
 
   Future<void> syncAllPendingEvents() async {
