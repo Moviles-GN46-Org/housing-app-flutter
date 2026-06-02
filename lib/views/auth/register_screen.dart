@@ -56,14 +56,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final authVM = context.read<AuthViewModel>();
       if (authVM.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authVM.error!), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(authVM.error!),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       } else if (authVM.isAuthenticated) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => VerifyEmailScreen(
-              email: authVM.currentUser!.email,
-            ),
+            builder: (_) => VerifyEmailScreen(email: authVM.currentUser!.email),
           ),
         );
       }
@@ -202,9 +203,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!_isEduEmail(value.trim())) {
-                            return 'Please use a valid .edu email address';
-                          }
+                          // if (!_isEduEmail(value.trim())) {
+                          //   return 'Please use a valid .edu email address';
+                          // }
                           return null;
                         },
                       ),

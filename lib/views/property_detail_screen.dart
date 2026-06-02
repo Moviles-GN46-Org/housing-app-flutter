@@ -395,91 +395,100 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
                   const SizedBox(height: 32),
 
-                  Builder(builder: (context) {
-                    final currentUserId =
-                        context.read<AuthViewModel>().currentUser?.id;
-                    final offlineQueue =
-                        context.watch<OfflineQueueService>();
+                  Builder(
+                    builder: (context) {
+                      final currentUserId = context
+                          .read<AuthViewModel>()
+                          .currentUser
+                          ?.id;
+                      final offlineQueue = context.watch<OfflineQueueService>();
 
-                    final reviewedOnServer = currentUserId != null &&
-                        _reviews.any((r) => r.author.id == currentUserId);
-                    final reviewPendingSync = currentUserId != null &&
-                        offlineQueue.hasPendingReviewForProperty(property.id);
+                      final reviewedOnServer =
+                          currentUserId != null &&
+                          _reviews.any((r) => r.author.id == currentUserId);
+                      final reviewPendingSync =
+                          currentUserId != null &&
+                          offlineQueue.hasPendingReviewForProperty(property.id);
 
-                    if (reviewedOnServer || reviewPendingSync) {
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 13,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4E0CA),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              reviewPendingSync
-                                  ? LucideIcons.clock
-                                  : LucideIcons.circle_check,
-                              size: 16,
-                              color: AppColors.dustyTaupe,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              reviewPendingSync
-                                  ? 'Review pending sync'
-                                  : 'You have already reviewed this property',
-                              style: const TextStyle(
-                                fontFamily: AppTextStyles.fontFamily,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.dustyTaupe,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final newReview = await Navigator.of(context).push<Review>(
-                            MaterialPageRoute(
-                              builder: (_) => WriteReviewScreen(property: property),
-                            ),
-                          );
-                          if (newReview != null && mounted) {
-                            setState(() => _reviews = [newReview, ..._reviews]);
-                          }
-                        },
-                        icon: const Icon(LucideIcons.pencil, size: 16),
-                        label: const Text(
-                          'Write a review',
-                          style: TextStyle(
-                            fontFamily: AppTextStyles.fontFamily,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                      if (reviewedOnServer || reviewPendingSync) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 13,
                           ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.lightBronze,
-                          side: const BorderSide(
-                            color: AppColors.lightBronze,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4E0CA),
                             borderRadius: BorderRadius.circular(14),
                           ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                reviewPendingSync
+                                    ? LucideIcons.clock
+                                    : LucideIcons.circle_check,
+                                size: 16,
+                                color: AppColors.dustyTaupe,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                reviewPendingSync
+                                    ? 'Review pending sync'
+                                    : 'You have already reviewed this property',
+                                style: const TextStyle(
+                                  fontFamily: AppTextStyles.fontFamily,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.dustyTaupe,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final newReview = await Navigator.of(context)
+                                .push<Review>(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        WriteReviewScreen(property: property),
+                                  ),
+                                );
+                            if (newReview != null && mounted) {
+                              setState(
+                                () => _reviews = [newReview, ..._reviews],
+                              );
+                            }
+                          },
+                          icon: const Icon(LucideIcons.pencil, size: 16),
+                          label: const Text(
+                            'Write a review',
+                            style: TextStyle(
+                              fontFamily: AppTextStyles.fontFamily,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.lightBronze,
+                            side: const BorderSide(
+                              color: AppColors.lightBronze,
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -659,10 +668,12 @@ class _ReviewsSection extends StatelessWidget {
         else
           Column(
             children: reviews
-                .map((r) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _ReviewCard(review: r),
-                    ))
+                .map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ReviewCard(review: r),
+                  ),
+                )
                 .toList(),
           ),
       ],
@@ -702,7 +713,8 @@ class _ReviewCard extends StatelessWidget {
                   color: const Color(0xFFF4E0CA),
                   shape: BoxShape.circle,
                 ),
-                child: review.author.profilePictureUrl != null &&
+                child:
+                    review.author.profilePictureUrl != null &&
                         review.author.profilePictureUrl!.isNotEmpty
                     ? ClipOval(
                         child: CachedNetworkImage(

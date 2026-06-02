@@ -5,10 +5,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../models/app_notification.dart';
 import '../models/property_model.dart';
 import '../utils/app_theme.dart';
 import '../services/analytics_service.dart';
+import '../services/api_client.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/main_page_viewmodel.dart';
 import 'property_detail_screen.dart';
@@ -27,6 +29,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final HomeViewModel _homeVM;
   final ScrollController _listScrollController = ScrollController();
+  final ApiClient _searchEventsApiClient = ApiClient();
+  final String _searchEventsSessionId = const Uuid().v4();
+  static const String _searchEventsCity = 'Bogota';
 
   @override
   void initState() {
@@ -72,6 +77,83 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         !_homeVM.isLoadingMore &&
         !_homeVM.isLoading) {
       _homeVM.loadNextPage();
+    }
+  }
+
+  int? _priceMaxFromBudgetFilter(String budgetFilter) {
+    switch (budgetFilter) {
+      case 'Under \$600k':
+        return 600000;
+      case '\$600k - \$900k':
+        return 900000;
+      case '\$900k - \$1.2M':
+        return 1200000;
+      default:
+        return null;
+    }
+  }
+
+  Map<String, dynamic> _buildSearchFiltersPayload() {
+    final filters = <String, dynamic>{};
+
+    final priceMax = _priceMaxFromBudgetFilter(_homeVM.budgetFilter);
+    if (priceMax != null) {
+      filters['priceMax'] = priceMax;
+    }
+    if (_homeVM.budgetFilter.isNotEmpty) {
+      filters['budgetRange'] = _homeVM.budgetFilter;
+    }
+    if (_homeVM.amenitiesFilter.isNotEmpty) {
+      filters['amenities'] = _homeVM.amenitiesFilter;
+    }
+    if (_homeVM.utilitiesFilter.isNotEmpty) {
+      filters['utilities'] = _homeVM.utilitiesFilter;
+    }
+
+    return filters;
+  }
+
+  Future<void> _logSearchEventForMonthlyConcentration({
+    required String query,
+    String? neighborhood,
+  }) async {
+    final normalizedQuery = query.trim();
+    final normalizedNeighborhood = neighborhood?.trim().isNotEmpty == true
+        ? neighborhood!.trim()
+        : (_homeVM.locationFilter.trim().isNotEmpty
+              ? _homeVM.locationFilter.trim()
+              : '');
+
+    if (normalizedQuery.isEmpty && normalizedNeighborhood.isEmpty) {
+      return;
+    }
+
+    final payload = <String, dynamic>{
+      'sessionId': _searchEventsSessionId,
+      'city': _searchEventsCity,
+      'source': 'house_list',
+      'searchedAt': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    if (normalizedQuery.isNotEmpty) {
+      payload['query'] = normalizedQuery;
+    }
+    if (normalizedNeighborhood.isNotEmpty) {
+      payload['neighborhood'] = normalizedNeighborhood;
+    }
+
+    final filters = _buildSearchFiltersPayload();
+    if (filters.isNotEmpty) {
+      payload['filters'] = filters;
+    }
+
+    try {
+      await _searchEventsApiClient.post(
+        '/analytics/search-events',
+        data: payload,
+      );
+    } catch (e) {
+      debugPrint('Failed to log home search event: $e');
     }
   }
 
@@ -254,6 +336,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     context
                                         .read<HomeViewModel>()
                                         .setSearchQuery(value);
+                                    _logSearchEventForMonthlyConcentration(
+                                      query: value,
+                                    );
                                     controller.closeView(value);
                                   },
                                   trailing: homeVM.searchQuery.isNotEmpty
@@ -297,6 +382,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       ),
                                       onTap: () {
                                         vm.setSearchQuery(n);
+                                        _logSearchEventForMonthlyConcentration(
+                                          query: n,
+                                          neighborhood: n,
+                                        );
                                         controller.closeView(n);
                                       },
                                     ),
@@ -388,71 +477,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   )
                 else
                   Expanded(
-                    child: Builder(builder: (context) {
-                      final favCount = filteredProperties
-                          .where((p) => homeVM.isFavorite(p.id))
-                          .length;
-                      final showTopRated = homeVM.topRatedNearby.isNotEmpty;
-                      final topRatedSlot = showTopRated ? 1 : 0;
-                      final itemCount =
-                          filteredProperties.length + topRatedSlot + 1;
+                    child: Builder(
+                      builder: (context) {
+                        final favCount = filteredProperties
+                            .where((p) => homeVM.isFavorite(p.id))
+                            .length;
+                        final showTopRated = homeVM.topRatedNearby.isNotEmpty;
+                        final topRatedSlot = showTopRated ? 1 : 0;
+                        final itemCount =
+                            filteredProperties.length + topRatedSlot + 1;
 
-                      return ListView.builder(
-                        controller: _listScrollController,
-                        padding: const EdgeInsets.only(bottom: 110),
-                        itemCount: itemCount,
-                        itemBuilder: (context, index) {
-                          if (index == itemCount - 1) {
-                            if (homeVM.isLoadingMore) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.lightBronze,
+                        return ListView.builder(
+                          controller: _listScrollController,
+                          padding: const EdgeInsets.only(bottom: 110),
+                          itemCount: itemCount,
+                          itemBuilder: (context, index) {
+                            if (index == itemCount - 1) {
+                              if (homeVM.isLoadingMore) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.lightBronze,
+                                    ),
                                   ),
-                                ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            }
+
+                            if (showTopRated && index == favCount) {
+                              return _TopRatedNearbySection(
+                                properties: homeVM.topRatedNearby,
                               );
                             }
-                            return const SizedBox.shrink();
-                          }
 
-                          if (showTopRated && index == favCount) {
-                            return _TopRatedNearbySection(
-                              properties: homeVM.topRatedNearby,
-                            );
-                          }
-
-                          final propertyIndex =
-                              showTopRated && index > favCount
-                                  ? index - 1
-                                  : index;
-                          final property = filteredProperties[propertyIndex];
-                          return PropertyCard(
-                            property: property,
-                            index: propertyIndex,
-                            isFavorite: homeVM.isFavorite(property.id),
-                            isFavoriteLoading: homeVM
-                                .isFavoriteActionInFlight(property.id),
-                            onFavoriteTap: () async {
-                              final success = await homeVM.toggleFavorite(
-                                property.id,
-                              );
-                              if (!success && context.mounted) {
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Unable to update favorite right now',
+                            final propertyIndex =
+                                showTopRated && index > favCount
+                                ? index - 1
+                                : index;
+                            final property = filteredProperties[propertyIndex];
+                            return PropertyCard(
+                              property: property,
+                              index: propertyIndex,
+                              isFavorite: homeVM.isFavorite(property.id),
+                              isFavoriteLoading: homeVM
+                                  .isFavoriteActionInFlight(property.id),
+                              onFavoriteTap: () async {
+                                final success = await homeVM.toggleFavorite(
+                                  property.id,
+                                );
+                                if (!success && context.mounted) {
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Unable to update favorite right now',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                              }
-                            },
-                          );
-                        },
-                      );
-                    }),
+                                    );
+                                }
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
               ],
             ),

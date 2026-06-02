@@ -8,12 +8,14 @@ import 'services/offline_queue_service.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/notification_repository.dart';
 import 'repositories/property_repository.dart';
-import 'repositories/chat_repository.dart'; 
+import 'repositories/chat_repository.dart';
+import 'repositories/roommate_repository.dart';
 import 'utils/app_theme.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/main_page_viewmodel.dart';
 import 'viewmodels/map_view_model.dart';
+import 'viewmodels/roommate_viewmodel.dart';
 import 'viewmodels/strategies/favorite_proximity_strategy.dart';
 import 'viewmodels/strategies/movement_detection_strategy.dart';
 import 'views/auth/login_screen.dart';
@@ -31,7 +33,6 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(LocalEventAdapter());
   await Hive.openBox<LocalEvent>('pending_locations');
-  
 
   await Hive.openBox('chat_cache'); 
   await Hive.openBox('filter_prefs'); 
@@ -39,17 +40,18 @@ void main() async {
 
   final filterPrefsService = FilterPrefsService(Hive.box('filter_prefs'));
 
-
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient);
   final propertyRepository = PropertyRepository(apiClient);
   final notificationRepository = NotificationRepository(apiClient);
-  final chatRepository = ChatRepository(apiClient); 
+  final chatRepository = ChatRepository(apiClient);
+  final roommateRepository = RoommateRepository(apiClient);
 
   final analyticsService = AnalyticsService(apiClient);
   final offlineQueueService = OfflineQueueService(
     propertyRepository: propertyRepository,
-    chatRepository: chatRepository, 
+    chatRepository: chatRepository,
+    roommateRepository: roommateRepository,
   );
   await offlineQueueService.init();
 
@@ -76,7 +78,7 @@ void main() async {
       providers: [
         Provider<AnalyticsService>.value(value: analyticsService),
         Provider<PropertyRepository>.value(value: propertyRepository),
-        Provider<ChatRepository>.value(value: chatRepository), 
+        Provider<ChatRepository>.value(value: chatRepository),
         ChangeNotifierProvider<OfflineQueueService>.value(
           value: offlineQueueService,
         ),
@@ -118,6 +120,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => MapViewModel(propertyRepository, analyticsService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => RoommateViewModel(roommateRepository),
         ),
       ],
       child: const UniHousingApp(),
