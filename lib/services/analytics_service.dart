@@ -135,7 +135,7 @@ class AnalyticsService {
         '/analytics/events',
         data: {
           'sessionId': _sessionId,
-          'eventType': 'SEARCH_QUERY',
+          'eventType': 'SEARCH',
           'screenName': currentScreen ?? ScreenName.home,
           'payload': {'query': query},
         },
@@ -159,8 +159,7 @@ class AnalyticsService {
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
 
-      final data =
-          (response.data['data'] as List).cast<Map<String, dynamic>>();
+      final data = (response.data['data'] as List).cast<Map<String, dynamic>>();
       return data.map(MonthlySearchCount.fromJson).toList();
     } catch (e) {
       debugPrint('Failed to fetch searches by month: $e');
@@ -228,7 +227,8 @@ class AnalyticsService {
       // Interrogamos el hardware
       if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
-        brand = androidInfo.manufacturer; // Retorna 'samsung', 'xiaomi', 'motorola', etc.
+        brand = androidInfo
+            .manufacturer; // Retorna 'samsung', 'xiaomi', 'motorola', etc.
       } else if (Platform.isIOS) {
         brand = "Apple";
       }
@@ -236,14 +236,11 @@ class AnalyticsService {
       // Lo enviamos directo al backend
       await _apiClient.post(
         '/analytics/device-brands',
-        data: {
-          'brand': brand.toUpperCase(),
-        },
+        data: {'brand': brand.toUpperCase()},
       );
       debugPrint("Analítica de marca enviada: $brand");
     } catch (e) {
       debugPrint('Error enviando marca del dispositivo: $e');
     }
   }
-  
 }
