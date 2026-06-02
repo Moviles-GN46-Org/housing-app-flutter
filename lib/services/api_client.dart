@@ -15,7 +15,7 @@ class ApiClient {
   //   flutter run --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
+    defaultValue: 'http://192.168.0.7:3000/api',
   );
 
   final Dio _dio;

@@ -81,35 +81,44 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      Position position = await _determinePosition();
-      _userLocation = LatLng(position.latitude, position.longitude);
 
-      if (!_isOffline) {
-        await _analyticsService.logLocationBQ(position.latitude, position.longitude);
+      try {
+        Position position = await _determinePosition();
+        _userLocation = LatLng(position.latitude, position.longitude);
+
+        if (!_isOffline) {
+          await _analyticsService.logLocationBQ(position.latitude, position.longitude);
+        }
+      } catch (locError) {
+        debugPrint("Aviso: No se pudo obtener ubicación exacta: $locError");
       }
-
 
       var conn = await Connectivity().checkConnectivity();
       if (conn.contains(ConnectivityResult.none)) {
+
         _isOffline = true;
-
         _allProperties = await _cacheService.readFirstPage() ?? [];
-        debugPrint("Mapa cargado desde el caché local");
+        debugPrint("MODO OFFLINE: Mapa cargado desde el caché local (${_allProperties.length} propiedades)");
       } else {
-        _isOffline = false;
 
+        _isOffline = false;
         _allProperties = await _propertyRepository.getProperties();
+        _analyticsService.logDeviceBrandOnMapOpen();
+
+        await _cacheService.writeFirstPage(_allProperties);
+        debugPrint("MODO ONLINE: Propiedades descargadas y guardadas en caché exitosamente.");
       }
+
 
       _filterPropertiesByDistance();
       
-      if (!_isOffline) {
+      if (!_isOffline && _userLocation != null) {
         await _logSupplyDensityAnalytics();
       }
 
     } catch (e) {
-      debugPrint("Error initializing map: $e");
 
+      debugPrint("Error general en el mapa: $e. Forzando modo offline.");
       _isOffline = true;
       _allProperties = await _cacheService.readFirstPage() ?? [];
       _filterPropertiesByDistance();
@@ -120,7 +129,12 @@ class MapViewModel extends ChangeNotifier {
   }
 
   void _filterPropertiesByDistance() {
-    if (_userLocation == null) return;
+
+    if (_userLocation == null) {
+      _filteredProperties = List.from(_allProperties);
+      return;
+    }
+    
     final Distance distance = const Distance();
     
     _filteredProperties = _allProperties.where((p) {

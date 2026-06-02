@@ -4,6 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'api_client.dart';
 import '../models/local_event.dart';
 import 'local_db_service.dart';
+import 'dart:io' show Platform;
+import 'package:device_info_plus/device_info_plus.dart';
 
 class ScreenName {
   static const String home = 'Home';
@@ -176,4 +178,31 @@ class AnalyticsService {
       );
     }
   }
+
+  Future<void> logDeviceBrandOnMapOpen() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      String brand = "Desconocido";
+
+      // Interrogamos el hardware
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        brand = androidInfo.manufacturer; // Retorna 'samsung', 'xiaomi', 'motorola', etc.
+      } else if (Platform.isIOS) {
+        brand = "Apple";
+      }
+
+      // Lo enviamos directo al backend
+      await _apiClient.post(
+        '/analytics/device-brands',
+        data: {
+          'brand': brand.toUpperCase(),
+        },
+      );
+      debugPrint("Analítica de marca enviada: $brand");
+    } catch (e) {
+      debugPrint('Error enviando marca del dispositivo: $e');
+    }
+  }
+  
 }
