@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -39,7 +40,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await analytics.markFeatureLoadEnd(ScreenName.home);
       _homeVM.fetchNotifications();
       _homeVM.startNotificationsPolling();
+      _loadTopRatedNearby();
     });
+  }
+
+  Future<void> _loadTopRatedNearby() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      );
+      if (!mounted) return;
+      await _homeVM.fetchTopRatedNearby(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+    } catch (_) {}
   }
 
   void _onListScroll() {
@@ -366,51 +388,71 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   )
                 else
                   Expanded(
-                    child: ListView.builder(
-                      controller: _listScrollController,
-                      padding: const EdgeInsets.only(bottom: 110),
-                      itemCount: filteredProperties.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == filteredProperties.length) {
-                          if (homeVM.isLoadingMore) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.lightBronze,
+                    child: Builder(builder: (context) {
+                      final favCount = filteredProperties
+                          .where((p) => homeVM.isFavorite(p.id))
+                          .length;
+                      final showTopRated = homeVM.topRatedNearby.isNotEmpty;
+                      final topRatedSlot = showTopRated ? 1 : 0;
+                      final itemCount =
+                          filteredProperties.length + topRatedSlot + 1;
+
+                      return ListView.builder(
+                        controller: _listScrollController,
+                        padding: const EdgeInsets.only(bottom: 110),
+                        itemCount: itemCount,
+                        itemBuilder: (context, index) {
+                          if (index == itemCount - 1) {
+                            if (homeVM.isLoadingMore) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.lightBronze,
+                                  ),
                                 ),
-                              ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }
+
+                          if (showTopRated && index == favCount) {
+                            return _TopRatedNearbySection(
+                              properties: homeVM.topRatedNearby,
                             );
                           }
-                          return const SizedBox.shrink();
-                        }
-                        final property = filteredProperties[index];
-                        return PropertyCard(
-                          property: property,
-                          index: index,
-                          isFavorite: homeVM.isFavorite(property.id),
-                          isFavoriteLoading: homeVM.isFavoriteActionInFlight(
-                            property.id,
-                          ),
-                          onFavoriteTap: () async {
-                            final success = await homeVM.toggleFavorite(
-                              property.id,
-                            );
-                            if (!success && context.mounted) {
-                              ScaffoldMessenger.of(context)
-                                ..hideCurrentSnackBar()
-                                ..showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Unable to update favorite right now',
+
+                          final propertyIndex =
+                              showTopRated && index > favCount
+                                  ? index - 1
+                                  : index;
+                          final property = filteredProperties[propertyIndex];
+                          return PropertyCard(
+                            property: property,
+                            index: propertyIndex,
+                            isFavorite: homeVM.isFavorite(property.id),
+                            isFavoriteLoading: homeVM
+                                .isFavoriteActionInFlight(property.id),
+                            onFavoriteTap: () async {
+                              final success = await homeVM.toggleFavorite(
+                                property.id,
+                              );
+                              if (!success && context.mounted) {
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Unable to update favorite right now',
+                                      ),
                                     ),
-                                  ),
-                                );
-                            }
-                          },
-                        );
-                      },
-                    ),
+                                  );
+                              }
+                            },
+                          );
+                        },
+                      );
+                    }),
                   ),
               ],
             ),
@@ -1816,6 +1858,192 @@ class PropertyCard extends StatelessWidget {
                               ],
                             ),
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopRatedNearbySection extends StatelessWidget {
+  const _TopRatedNearbySection({required this.properties});
+
+  final List<Property> properties;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4E0CA),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    LucideIcons.star,
+                    size: 16,
+                    color: AppColors.lightBronze,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Top rated near you',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fontFamily,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.deepMocha,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 168,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: properties.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final p = properties[index];
+                return _TopRatedCard(property: p);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopRatedCard extends StatelessWidget {
+  const _TopRatedCard({required this.property});
+
+  final Property property;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PropertyDetailScreen(property: property),
+          ),
+        );
+      },
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppShadows.small,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              child: SizedBox(
+                height: 90,
+                width: double.infinity,
+                child: CachedNetworkImage(
+                  imageUrl: property.imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, _, _) => Container(
+                    color: const Color(0xFFD9CEC8),
+                    child: const Icon(
+                      LucideIcons.house,
+                      color: AppColors.dustyTaupe,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    property.title,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.deepMocha,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    property.neighborhood,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fontFamily,
+                      fontSize: 11,
+                      color: AppColors.dustyTaupe,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 14,
+                        color: AppColors.lightBronze,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        property.averageRating != null
+                            ? property.averageRating!.toStringAsFixed(1)
+                            : '—',
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.deepMocha,
+                        ),
+                      ),
+                      if (property.reviewCount != null) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${property.reviewCount})',
+                          style: const TextStyle(
+                            fontFamily: AppTextStyles.fontFamily,
+                            fontSize: 11,
+                            color: AppColors.dustyTaupe,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        '\$${NumberFormat('#,###').format(property.monthlyRent.toInt() ~/ 1000)}k',
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.lightBronze,
                         ),
                       ),
                     ],

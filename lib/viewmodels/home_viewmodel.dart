@@ -60,6 +60,8 @@ class HomeViewModel extends ChangeNotifier {
   String _utilitiesFilter = '';
   Timer? _notificationsPollingTimer;
   Timer? _searchDebounce;
+  List<Property> _topRatedNearby = const [];
+  bool _isLoadingTopRated = false;
   List<Property>? _sortedPropertiesCache;
   List<Property>? _filteredPropertiesCache;
   List<String>? _sortedNeighborhoodsCache;
@@ -96,6 +98,8 @@ class HomeViewModel extends ChangeNotifier {
   DateTime? get cachedAt => _cachedAt;
   String? get error => _error;
   bool get hasProperties => _properties.isNotEmpty;
+  List<Property> get topRatedNearby => _topRatedNearby;
+  bool get isLoadingTopRated => _isLoadingTopRated;
   String get searchQuery => _searchQuery;
   String get budgetFilter => _budgetFilter;
   String get amenitiesFilter => _amenitiesFilter;
@@ -296,6 +300,29 @@ class HomeViewModel extends ChangeNotifier {
       }
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> fetchTopRatedNearby({
+    required double lat,
+    required double lng,
+    double radiusKm = 25.0,
+    int limit = 5,
+  }) async {
+    if (_isLoadingTopRated) return;
+    _isLoadingTopRated = true;
+    notifyListeners();
+
+    try {
+      _topRatedNearby = await _repository.getTopRatedNearby(
+        lat: lat,
+        lng: lng,
+        radiusKm: radiusKm,
+        limit: limit,
+      );
+    } finally {
+      _isLoadingTopRated = false;
+      notifyListeners();
     }
   }
 

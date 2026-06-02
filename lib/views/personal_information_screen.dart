@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import '../utils/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
-import '../services/api_client.dart'; 
+import '../services/api_client.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class PersonalInformationScreen extends StatefulWidget {
   const PersonalInformationScreen({super.key});
@@ -14,6 +15,16 @@ class PersonalInformationScreen extends StatefulWidget {
 
 class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   bool _lookingForRoommate = false;
+  late Box _prefsBox; // Declaramos la caja
+
+  @override
+  void initState() {
+    super.initState();
+    // 1. Cargamos la caja de preferencias
+    _prefsBox = Hive.box('user_prefs');
+    // 2. Leemos el último valor guardado (si no hay nada, por defecto es false)
+    _lookingForRoommate = _prefsBox.get('isLookingForRoommate', defaultValue: false);
+  }
 
   void _save() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -30,12 +41,18 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     return Scaffold(
       backgroundColor: AppColors.linen,
       appBar: AppBar(
-        // ... (Tu appbar se queda igual)
         backgroundColor: const Color(0xFFF7E6D5),
         elevation: 0,
         centerTitle: true,
-        title: const Text('Personal Information', style: TextStyle(color: AppColors.deepMocha, fontSize: 20, fontWeight: FontWeight.w600)),
-        leading: IconButton(icon: const Icon(LucideIcons.chevron_left, color: AppColors.dustyTaupe), onPressed: () => Navigator.of(context).pop()),
+        title: const Text('Personal Information',
+            style: TextStyle(
+                color: AppColors.deepMocha,
+                fontSize: 20,
+                fontWeight: FontWeight.w600)),
+        leading: IconButton(
+            icon: const Icon(LucideIcons.chevron_left,
+                color: AppColors.dustyTaupe),
+            onPressed: () => Navigator.of(context).pop()),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -49,42 +66,58 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 boxShadow: AppShadows.card,
               ),
               child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                title: const Text('Looking for a roommate', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                subtitle: const Text('Show your profile to others seeking roommates', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
-                value: _lookingForRoommate,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                title: const Text('Looking for a roommate',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textDark)),
+                subtitle: const Text(
+                    'Show your profile to others seeking roommates',
+                    style:
+                        TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                value: _lookingForRoommate, // Valor amarrado al estado actual
                 activeColor: AppColors.primary,
-                
                 onChanged: (value) async {
+                  // 1. Actualizamos la UI inmediatamente
                   setState(() => _lookingForRoommate = value);
-                  
+
+                  // 2. MAGIA DE PERSISTENCIA: Guardamos la elección localmente en disco
+                  await _prefsBox.put('isLookingForRoommate', value);
+
+                  // 3. Si lo prendió, enviamos el "+1" al dashboard
                   if (value == true) {
                     try {
-                      // 1. Verificamos permisos y obtenemos la ubicación real
-                      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-                      if (!serviceEnabled) throw Exception('Servicios de ubicación desactivados');
-
-                      LocationPermission permission = await Geolocator.checkPermission();
-                      if (permission == LocationPermission.denied) {
-                        permission = await Geolocator.requestPermission();
-                        if (permission == LocationPermission.denied) throw Exception('Permiso denegado');
+                      bool serviceEnabled =
+                          await Geolocator.isLocationServiceEnabled();
+                      if (!serviceEnabled) {
+                        throw Exception('Servicios de ubicación desactivados');
                       }
 
-                      // Tomamos la posición actual (baja precisión es suficiente y más rápida)
-                      Position position = await Geolocator.getCurrentPosition(
-                        desiredAccuracy: LocationAccuracy.low
-                      );
+                      LocationPermission permission =
+                          await Geolocator.checkPermission();
+                      if (permission == LocationPermission.denied) {
+                        permission = await Geolocator.requestPermission();
+                        if (permission == LocationPermission.denied) {
+                          throw Exception('Permiso denegado');
+                        }
+                      }
 
-                      // 2. Enviamos las coordenadas reales al backend
-                      final response = await ApiClient().post('/analytics/roommate-update', data: {
+                      Position position = await Geolocator.getCurrentPosition(
+                          desiredAccuracy: LocationAccuracy.low);
+
+                      final response = await ApiClient()
+                          .post('/analytics/roommate-update', data: {
                         'lat': position.latitude,
                         'lng': position.longitude
                       });
-                      
-                      debugPrint("¡Éxito! Analítica enviada: ${response.statusCode}");
+
+                      debugPrint(
+                          "¡Éxito! Analítica enviada: ${response.statusCode}");
                     } catch (e) {
-                      // Si el usuario no da permiso de ubicación o hay error de red, no crashea
-                      debugPrint("Error obteniendo ubicación o enviando analítica: $e");
+                      debugPrint(
+                          "Error obteniendo ubicación o enviando analítica: $e");
                     }
                   }
                 },

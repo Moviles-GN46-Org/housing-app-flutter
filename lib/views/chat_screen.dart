@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models/chat_message.dart';
 import '../repositories/chat_repository.dart';
 import '../services/offline_queue_service.dart';
@@ -53,36 +52,49 @@ class _ChatScreenViewState extends State<_ChatScreenView> {
 
   @override
   Widget build(BuildContext context) {
+    // Escuchamos los cambios del ViewModel
     final viewModel = context.watch<ChatViewModel>();
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.propertyTitle),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        elevation: 0.5,
       ),
       body: Column(
         children: [
-          if (viewModel.errorMessage != null)
+          // 1. BANNER DE CONECTIVIDAD (Evita Antipatrón #3 y #5)
+          if (viewModel.isOffline)
             Container(
               color: Colors.orange.shade100,
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               child: Row(
                 children: [
                   const Icon(Icons.wifi_off, color: Colors.orange, size: 20),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(viewModel.errorMessage!, style: const TextStyle(color: Colors.orange, fontSize: 13))),
+                  const Expanded(
+                    child: Text(
+                      'Sin conexión. Mostrando mensajes guardados.',
+                      style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ],
               ),
             ),
+
+          // 2. LISTA DE MENSAJES (UI OPTIMISTA)
           Expanded(
             child: viewModel.messages.isEmpty && viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
+                    reverse: false, // Puedes poner true si quieres que el chat inicie abajo
                     itemCount: viewModel.messages.length,
                     itemBuilder: (context, index) {
                       final message = viewModel.messages[index];
                       final isMe = message.senderId == viewModel.currentUserId;
+                      
                       return Align(
                         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
@@ -95,10 +107,20 @@ class _ChatScreenViewState extends State<_ChatScreenView> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(child: Text(message.content, style: TextStyle(color: isMe ? Colors.white : Colors.black))),
+                              Flexible(
+                                child: Text(
+                                  message.content, 
+                                  style: TextStyle(color: isMe ? Colors.white : Colors.black)
+                                )
+                              ),
                               if (isMe) ...[
                                 const SizedBox(width: 8),
-                                Icon(message.isPending ? Icons.access_time : Icons.done_all, size: 14, color: Colors.white70),
+                                // Icono que muestra si el mensaje está pendiente o enviado
+                                Icon(
+                                  message.isPending ? Icons.access_time : Icons.done_all, 
+                                  size: 14, 
+                                  color: Colors.white70
+                                ),
                               ]
                             ],
                           ),
@@ -107,6 +129,8 @@ class _ChatScreenViewState extends State<_ChatScreenView> {
                     },
                   ),
           ),
+
+          // 3. CAMPO DE ENTRADA
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(8.0),

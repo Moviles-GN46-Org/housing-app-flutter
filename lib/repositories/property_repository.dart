@@ -73,10 +73,42 @@ class PropertyRepository {
 
     return PropertyPage(
       items: items,
-      total: (data is Map && data['total'] is int) ? data['total'] as int : items.length,
+      total: (data is Map && data['total'] is int)
+          ? data['total'] as int
+          : items.length,
       page: (data is Map && data['page'] is int) ? data['page'] as int : page,
-      limit: (data is Map && data['limit'] is int) ? data['limit'] as int : limit,
+      limit: (data is Map && data['limit'] is int)
+          ? data['limit'] as int
+          : limit,
     );
+  }
+
+  Future<List<Property>> getTopRatedNearby({
+    required double lat,
+    required double lng,
+    required double radiusKm,
+    int limit = 3,
+  }) async {
+    try {
+      final response = await _api.get(
+        '/properties/top-rated',
+        queryParams: {
+          'lat': lat,
+          'lng': lng,
+          'radiusKm': radiusKm,
+          'limit': limit,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final raw = response.data['data'] as List? ?? [];
+        return raw
+            .map((item) => Property.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (_) {}
+
+    return [];
   }
 
   Future<Set<String>> getFavoritePropertyIds() async {

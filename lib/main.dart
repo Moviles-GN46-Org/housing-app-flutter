@@ -34,8 +34,9 @@ void main() async {
   Hive.registerAdapter(LocalEventAdapter());
   await Hive.openBox<LocalEvent>('pending_locations');
 
-  await Hive.openBox('chat_cache');
-  await Hive.openBox('filter_prefs');
+  await Hive.openBox('chat_cache'); 
+  await Hive.openBox('filter_prefs'); 
+  await Hive.openBox('user_prefs');
 
   final filterPrefsService = FilterPrefsService(Hive.box('filter_prefs'));
 

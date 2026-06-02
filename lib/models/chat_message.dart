@@ -19,21 +19,21 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     try {
-      // 1. Extracción a prueba de balas del ID del remitente
+
       String extractedSenderId = 'unknown';
       if (json['senderId'] != null) {
         extractedSenderId = json['senderId'].toString();
       } else if (json['sender'] != null) {
         if (json['sender'] is Map) {
-          // Si el backend envía un objeto poblado: sender: { id: "..." }
+
           extractedSenderId = (json['sender']['id'] ?? json['sender']['_id'] ?? 'unknown').toString();
         } else {
-          // Si el backend envía el string/ObjectId directo
+
           extractedSenderId = json['sender'].toString();
         }
       }
 
-      // 2. Construcción segura del mensaje
+
       return ChatMessage(
         id: (json['id'] ?? json['_id'] ?? DateTime.now().millisecondsSinceEpoch).toString(),
         chatId: (json['chatId'] ?? json['chat'] ?? '').toString(),
@@ -44,15 +44,14 @@ class ChatMessage {
         isPending: json['isPending'] ?? false,
       );
     } catch (e) {
-      // SI ALGO FALLA, NO BORRAMOS EL MENSAJE. LO MOSTRAMOS PARA DEPURAR.
-      print("🚨 ERROR PARSEANDO MENSAJE: $e");
-      print("🚨 JSON RECIBIDO DEL BACKEND: $json");
+      print("ERROR PARSEANDO MENSAJE: $e");
+      print("JSON RECIBIDO DEL BACKEND: $json");
       return ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         chatId: '',
         senderId: '',
         type: 'TEXT',
-        content: '⚠️ Este mensaje tiene un formato ilegible desde la base de datos.',
+        content: ' Este mensaje tiene un formato ilegible desde la base de datos.',
         createdAt: DateTime.now(),
       );
     }
