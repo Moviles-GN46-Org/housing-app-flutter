@@ -6,8 +6,10 @@ import 'feed_screen.dart';
 import 'roomies_screen.dart';
 import 'profile_screen.dart';
 import 'map_screen.dart';
+import '../models/offline_action.dart';
 import '../models/property_model.dart';
 import '../services/analytics_service.dart';
+import '../services/offline_queue_service.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/main_page_viewmodel.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -54,6 +56,7 @@ class _MainPageState extends State<MainPage> {
   int currentPage = 0;
   late final MainPageViewModel _mainPageViewModel;
   bool _isPromptVisible = false;
+  String? _lastHandledProfileSyncActionId;
 
   @override
   void initState() {
@@ -236,6 +239,25 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final offlineQueue = context.watch<OfflineQueueService>();
+    final syncedActionId = offlineQueue.lastSyncedActionId;
+    if (offlineQueue.lastSyncedActionType ==
+            OfflineActionType.updateRoommateProfile &&
+        syncedActionId != null &&
+        syncedActionId != _lastHandledProfileSyncActionId) {
+      _lastHandledProfileSyncActionId = syncedActionId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Your public profile information was updated.'),
+            ),
+          );
+      });
+    }
+
     return Scaffold(
       extendBody: true,
       body: pages[currentPage],

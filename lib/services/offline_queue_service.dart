@@ -9,18 +9,23 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/offline_action.dart';
+import '../models/roommate_profile.dart';
 import '../repositories/property_repository.dart';
-import '../repositories/chat_repository.dart'; 
+import '../repositories/chat_repository.dart';
+import '../repositories/roommate_repository.dart';
 
 class OfflineQueueService extends ChangeNotifier {
   OfflineQueueService({
     required PropertyRepository propertyRepository,
-    required ChatRepository chatRepository, 
-  })  : _propertyRepository = propertyRepository,
-        _chatRepository = chatRepository;
+    required ChatRepository chatRepository,
+    required RoommateRepository roommateRepository,
+  }) : _propertyRepository = propertyRepository,
+       _chatRepository = chatRepository,
+       _roommateRepository = roommateRepository;
 
   final PropertyRepository _propertyRepository;
   final ChatRepository _chatRepository;
+  final RoommateRepository _roommateRepository;
 
   static const _manifestKey = 'offline_queue_manifest';
   static const _maxAttempts = 5;
@@ -37,6 +42,11 @@ class OfflineQueueService extends ChangeNotifier {
   final List<OfflineAction> _queue = [];
   bool _isProcessing = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  String? _lastSyncedActionId;
+  OfflineActionType? _lastSyncedActionType;
+
+  String? get lastSyncedActionId => _lastSyncedActionId;
+  OfflineActionType? get lastSyncedActionType => _lastSyncedActionType;
 
   bool hasPendingReviewForProperty(String propertyId) => _queue.any(
     (a) =>
@@ -119,6 +129,22 @@ class OfflineQueueService extends ChangeNotifier {
     await _enqueue(action);
   }
 
+  Future<void> enqueueRoommateProfileUpdate({
+    required RoommateProfile profile,
+  }) async {
+    _queue.removeWhere(
+      (a) => a.type == OfflineActionType.updateRoommateProfile,
+    );
+
+    final action = OfflineAction(
+      id: _uuid.v4(),
+      type: OfflineActionType.updateRoommateProfile,
+      payload: profile.toJson(),
+      queuedAt: DateTime.now(),
+    );
+    await _enqueue(action);
+  }
+
   Future<void> flush() async {
     if (_isProcessing || _queue.isEmpty) return;
     _isProcessing = true;
@@ -157,7 +183,14 @@ class OfflineQueueService extends ChangeNotifier {
             action.payload['chatId'] as String,
             action.payload['content'] as String,
           );
-          await _dequeue(action.id);
+          await _dequeue(action.id, syncedType: action.type);
+          break;
+
+        case OfflineActionType.updateRoommateProfile:
+          await _roommateRepository.upsertProfile(
+            RoommateProfile.fromJson(action.payload),
+          );
+          await _dequeue(action.id, syncedType: action.type);
           break;
       }
       return true;
@@ -187,7 +220,11 @@ class OfflineQueueService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _dequeue(String id) async {
+  Future<void> _dequeue(String id, {OfflineActionType? syncedType}) async {
+    if (syncedType != null) {
+      _lastSyncedActionId = id;
+      _lastSyncedActionType = syncedType;
+    }
     _queue.removeWhere((a) => a.id == id);
     await _cache.removeFile(id);
     await _persistManifest();
